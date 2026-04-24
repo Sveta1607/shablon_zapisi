@@ -1,0 +1,108 @@
+// Схема Prisma: пользователь, организация (витрина записи), услуги, недельное расписание, блокировки дат, записи клиентов
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Владелец: вход в админ-панель по email/паролю
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  organization Organization?
+}
+
+// Организация: один владелец, публичный slug для ссылки /book/[slug]
+model Organization {
+  id     String @id @default(cuid())
+  slug   String @unique
+  // Связь 1:1 с владельцем
+  ownerId String @unique
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  businessName String
+  description  String @default("")
+  phone        String @default("")
+  emailContact String @default("")
+
+  timezone        String @default("Europe/Moscow")
+  accentColor     String @default("#4f46e5")
+  logoUrl         String?
+  minAdvanceHours Int    @default(2)
+  slotStepMinutes Int    @default(30)
+
+  // Доступ: suspended — полная блокировка (задаёте вы вручную в БД/Studio); publicBookingEnabled — публичная витрина (может снять владелец в настройках)
+  suspended            Boolean @default(false)
+  publicBookingEnabled Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  services     Service[]
+  weeklySlots  WeeklySlot[]
+  bookings     Booking[]
+  blockedDates BlockedDate[]
+}
+
+// Услуга: длительность влияет на шаг занятости слотов
+model Service {
+  id              String       @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name            String
+  durationMinutes Int
+  priceCents      Int?
+  active          Boolean      @default(true)
+  sortOrder       Int          @default(0)
+
+  bookings Booking[]
+}
+
+// Окно работы в конкретный день недели: dayOfWeek как в JS Date.getDay() (0 — вс, 1 — пн, … 6 — сб)
+model WeeklySlot {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  dayOfWeek      Int
+  startMinutes   Int
+  endMinutes     Int
+}
+
+// Полный выходной / отпуск: дата в формате YYYY-MM-DD в «логике» организации (календарный день)
+model BlockedDate {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  dateStr        String
+  reason         String?
+
+  @@unique([organizationId, dateStr])
+}
+
+// Запись клиента на услугу
+model Booking {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  serviceId      String
+  service        Service      @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  clientName  String
+  clientPhone String
+  clientEmail String?
+  notes       String?
+
+  startsAt DateTime
+  endsAt   DateTime
+  status   String   @default("CONFIRMED")
+
+  createdAt DateTime @default(now())
+}

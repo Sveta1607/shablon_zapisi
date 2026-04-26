@@ -22,6 +22,27 @@ export function findOverlapError(slots: SlotInput[]): string | null {
   return null;
 }
 
+/** Календарные исключения: в одну дату (dateStr) окна не пересекаются */
+export type AdHocSlotInput = { dateStr: string; startMinutes: number; endMinutes: number };
+
+export function findOverlapErrorAdHoc(slots: AdHocSlotInput[]): string | null {
+  const byDate = new Map<string, AdHocSlotInput[]>();
+  for (const s of slots) {
+    const list = byDate.get(s.dateStr) ?? [];
+    list.push(s);
+    byDate.set(s.dateStr, list);
+  }
+  for (const list of byDate.values()) {
+    const sorted = [...list].sort((a, b) => a.startMinutes - b.startMinutes);
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i].startMinutes < sorted[i - 1].endMinutes) {
+        return "В одну календарную дату окна не должны пересекаться. Сначала уберите или сузьте существующее.";
+      }
+    }
+  }
+  return null;
+}
+
 /**
  * Перед добавлении нового окна: убрать «дефолт» 9:00–18:00 в этот день (чтобы не было двойного покрытия),
  * затем объединить с новым окном. Дальше — проверка пересечений.

@@ -1,13 +1,22 @@
-// Исключения: заблокированные даты (отпуск, праздник)
+// Исключения: заблокированные даты (отпуск, праздник) — по одной или списком
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { rejectIfOrganizationSuspended, requireOrganization } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 
-const postSchema = z.object({
-  dateStr: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+const dateYmd = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+const postSingleSchema = z.object({
+  dateStr: dateYmd,
   reason: z.string().max(200).optional(),
 });
+
+const postBatchSchema = z.object({
+  dates: z.array(dateYmd).min(1).max(400),
+  reason: z.string().max(200).optional(),
+});
+
+const postSchema = z.union([postSingleSchema, postBatchSchema]);
 
 export async function GET() {
   const ctx = await requireOrganization();
@@ -31,19 +40,40 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Неверные данные", details: parsed.error.flatten() }, { status: 400 });
   }
+
+  const orgId = ctx.organization.id;
+  const reason = parsed.data.reason ?? null;
+
+  if ("dates" in parsed.data) {
+    // Несколько дат за один запрос: дедупликация и upsert в транзакции
+    const uniqueSorted = [...new Set(parsed.data.dates)].sort();
+    const rows = await prisma.$transaction(
+      uniqueSorted.map((dateStr) =>
+        prisma.blockedDate.upsert({
+          where: {
+            organizationId_dateStr: { organizationId: orgId, dateStr },
+          },
+          create: { organizationId: orgId, dateStr, reason },
+          update: { reason },
+        })
+      )
+    );
+    return NextResponse.json(rows, { status: 201 });
+  }
+
   const row = await prisma.blockedDate.upsert({
     where: {
       organizationId_dateStr: {
-        organizationId: ctx.organization.id,
+        organizationId: orgId,
         dateStr: parsed.data.dateStr,
       },
     },
     create: {
-      organizationId: ctx.organization.id,
+      organizationId: orgId,
       dateStr: parsed.data.dateStr,
-      reason: parsed.data.reason ?? null,
+      reason,
     },
-    update: { reason: parsed.data.reason ?? null },
+    update: { reason },
   });
   return NextResponse.json(row, { status: 201 });
 }

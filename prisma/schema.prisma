@@ -51,6 +51,7 @@ model Organization {
 
   services     Service[]
   weeklySlots  WeeklySlot[]
+  adHocDaySlots AdHocDaySlot[]
   bookings     Booking[]
   blockedDates BlockedDate[]
 }
@@ -77,6 +78,18 @@ model WeeklySlot {
   dayOfWeek      Int
   startMinutes   Int
   endMinutes     Int
+}
+
+// Окна на одну календарную дату (YYYY-MM-DD в логике org.timezone) — перекрывают шаблон WeeklySlot в этот день
+model AdHocDaySlot {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  dateStr        String
+  startMinutes   Int
+  endMinutes     Int
+
+  @@index([organizationId, dateStr])
 }
 
 // Полный выходной / отпуск: дата в формате YYYY-MM-DD в «логике» организации (календарный день)

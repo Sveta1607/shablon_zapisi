@@ -58,16 +58,22 @@ export function computeAvailableSlots(params: {
   dateStr: string;
   serviceDurationMinutes: number;
   weekly: WeeklySlot[];
+  /** Если на эту dateStr заданы окна (исключения), они полностью заменяют недельный шаблон */
+  adHocWindowsForDate?: { startMinutes: number; endMinutes: number }[] | null;
   bookings: BookingForSlots[];
   now?: Date;
 }): Date[] {
-  const { org, dateStr, serviceDurationMinutes, weekly, bookings } = params;
+  const { org, dateStr, serviceDurationMinutes, weekly, bookings, adHocWindowsForDate } = params;
   const now = params.now ?? new Date();
   const minStart = addMinutes(now, org.minAdvanceHours * 60);
   const block = reservationBlockMinutes(serviceDurationMinutes);
 
   const dow = jsDayOfWeekInZone(dateStr, org.timezone);
-  const windows = weekly.filter((w) => w.dayOfWeek === dow);
+  // Исключения на дату: приоритет над повторяющимся днём недели
+  const windows =
+    adHocWindowsForDate && adHocWindowsForDate.length > 0
+      ? adHocWindowsForDate
+      : weekly.filter((w) => w.dayOfWeek === dow);
   if (windows.length === 0) return [];
 
   const activeBookings = bookings.filter((b) => b.status !== "CANCELLED");

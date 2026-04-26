@@ -47,8 +47,12 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string }>
   const fetchFrom = addMinutes(dayWallStart, -loadSpan);
   const fetchTo = addMinutes(dayWallEnd, loadSpan);
 
-  const [weekly, bookings] = await Promise.all([
+  const [weekly, adHocRows, bookings] = await Promise.all([
     prisma.weeklySlot.findMany({ where: { organizationId: org.id } }),
+    prisma.adHocDaySlot.findMany({
+      where: { organizationId: org.id, dateStr: parsed.data.date },
+      orderBy: { startMinutes: "asc" },
+    }),
     prisma.booking.findMany({
       where: {
         organizationId: org.id,
@@ -60,11 +64,14 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string }>
     }),
   ]);
 
+  const adHocWindowsForDate = adHocRows.map((r) => ({ startMinutes: r.startMinutes, endMinutes: r.endMinutes }));
+
   const slots = computeAvailableSlots({
     org,
     dateStr: parsed.data.date,
     serviceDurationMinutes: service.durationMinutes,
     weekly,
+    adHocWindowsForDate: adHocWindowsForDate.length > 0 ? adHocWindowsForDate : null,
     bookings,
   });
 

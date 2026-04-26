@@ -176,11 +176,6 @@ export default function AdminSettingsPage() {
       <header>
         <h1 className="text-2xl font-bold tracking-tight">Настройки</h1>
         <p className="text-stone-600 dark:text-stone-400">Данные бизнеса и параметры публичной записи</p>
-        <p className="mt-2 text-xs text-amber-800 dark:text-amber-200">
-          Чтобы <strong>целиком</strong> отключить клиента (и витрину, и вход в админку), выставьте в базе{" "}
-          <code className="rounded bg-stone-200 px-1 font-mono dark:bg-stone-700">Organization.suspended = true</code>{" "}
-          (например, в Prisma Studio).
-        </p>
       </header>
 
       {msg ? <p className="text-sm text-green-600">{msg}</p> : null}

@@ -45,14 +45,14 @@ export default async function AdminDashboardPage() {
     <div className="mx-auto max-w-3xl space-y-8">
       <header className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight">Обзор</h1>
-        <p className="text-zinc-600 dark:text-zinc-400">
+        <p className="text-stone-600 dark:text-stone-400">
           Добро пожаловать, {session.user?.name || session.user?.email}. Ближайших активных записей: {upcoming}.
         </p>
       </header>
 
-      <section className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-700 dark:bg-zinc-800/50">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Публичная запись</h2>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+      <section className="rounded-2xl border border-stone-200 bg-white/90 p-5 shadow-sm dark:border-stone-700 dark:bg-stone-900/50">
+        <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Публичная запись</h2>
+        <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
           Отправьте клиентам ссылку ниже — они увидят ваши услуги и свободное время без входа в админку.
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -61,34 +61,34 @@ export default async function AdminDashboardPage() {
             href={`/book/${org.slug}`}
             target="_blank"
             rel="noreferrer"
-            className="text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+            className="text-sm font-medium text-teal-800 hover:underline dark:text-teal-300"
           >
             Открыть как клиент →
           </Link>
         </div>
-        <p className="mt-2 font-mono text-xs text-zinc-500">
+        <p className="mt-2 font-mono text-xs text-stone-500">
           /book/{org.slug}
         </p>
       </section>
 
       <section>
         <h2 className="text-lg font-semibold">Записи на сегодня</h2>
-        <p className="text-sm text-zinc-500">Часовой пояс: {org.timezone}</p>
+        <p className="text-sm text-stone-500">Часовой пояс: {org.timezone}</p>
         <ul className="mt-3 space-y-2">
           {todayBookings.length === 0 ? (
-            <li className="rounded-xl border border-dashed border-zinc-300 px-4 py-6 text-center text-sm text-zinc-500 dark:border-zinc-600">
+            <li className="rounded-xl border border-dashed border-stone-300 px-4 py-6 text-center text-sm text-stone-500 dark:border-stone-600">
               На сегодня записей нет
             </li>
           ) : (
             todayBookings.map((b) => (
               <li
                 key={b.id}
-                className="flex flex-col gap-1 rounded-xl border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-700 dark:bg-zinc-800/40"
+                className="flex flex-col gap-1 rounded-xl border border-stone-200 bg-white px-4 py-3 dark:border-stone-700 dark:bg-stone-800/40"
               >
-                <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                <span className="font-medium text-stone-900 dark:text-stone-100">
                   {formatOrgDateTime(b.startsAt, org.timezone)} — {b.service.name}
                 </span>
-                <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                <span className="text-sm text-stone-600 dark:text-stone-400">
                   {b.clientName}, {b.clientPhone}
                 </span>
               </li>

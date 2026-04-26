@@ -16,10 +16,10 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
 
   return (
-    <div className="flex min-h-full flex-col justify-center bg-zinc-50 px-4 py-12 dark:bg-zinc-950">
-      <div className="mx-auto w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-        <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">Регистрация</h1>
-        <p className="mt-1 text-sm text-zinc-500">Создаётся аккаунт и страница записи с уникальной ссылкой</p>
+    <div className="flex min-h-full flex-col justify-center bg-gradient-to-b from-teal-50/50 via-stone-50 to-stone-100/80 px-4 py-12 dark:from-stone-950 dark:via-stone-900 dark:to-stone-950">
+      <div className="mx-auto w-full max-w-sm rounded-2xl border border-stone-200/90 bg-white p-8 shadow-md shadow-stone-900/5 ring-1 ring-teal-100/50 dark:border-stone-800 dark:bg-stone-900 dark:ring-teal-900/20">
+        <h1 className="text-xl font-bold text-stone-900 dark:text-stone-50">Регистрация</h1>
+        <p className="mt-1 text-sm text-stone-500">Аккаунт и публичная витрина с вашей ссылкой на запись</p>
         <form
           className="mt-6 space-y-4"
           onSubmit={async (e) => {
@@ -47,42 +47,42 @@ export default function RegisterPage() {
           }}
         >
           <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Название бизнеса</label>
+            <label className="block text-sm font-medium text-stone-700 dark:text-stone-300">Название бизнеса</label>
             <input
               required
-              className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+              className="mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-stone-900 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-100"
               value={businessName}
               onChange={(e) => setBusinessName(e.target.value)}
               placeholder="Например, Студия красоты «Лилия»"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Ваше имя (необязательно)</label>
+            <label className="block text-sm font-medium text-stone-700 dark:text-stone-300">Ваше имя (необязательно)</label>
             <input
-              className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+              className="mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-stone-900 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-100"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Email</label>
+            <label className="block text-sm font-medium text-stone-700 dark:text-stone-300">Email</label>
             <input
               type="email"
               required
               autoComplete="email"
-              className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+              className="mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-stone-900 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-100"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">Пароль (от 8 символов)</label>
+            <label className="block text-sm font-medium text-stone-700 dark:text-stone-300">Пароль (от 8 символов)</label>
             <input
               type="password"
               required
               minLength={8}
               autoComplete="new-password"
-              className="mt-1 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+              className="mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-stone-900 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-100"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
@@ -91,14 +91,14 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-indigo-600 py-2.5 font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+            className="w-full rounded-lg bg-teal-700 py-2.5 font-medium text-white shadow-sm hover:bg-teal-600 disabled:opacity-50"
           >
             {loading ? "Создание…" : "Создать аккаунт"}
           </button>
         </form>
-        <p className="mt-4 text-center text-sm text-zinc-500">
+        <p className="mt-4 text-center text-sm text-stone-500">
           Уже есть аккаунт?{" "}
-          <Link href="/login" className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+          <Link href="/login" className="font-medium text-teal-800 hover:underline dark:text-teal-300">
             Войти
           </Link>
         </p>

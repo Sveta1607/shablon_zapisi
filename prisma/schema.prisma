@@ -34,7 +34,10 @@ model Organization {
   emailContact String @default("")
 
   timezone        String @default("Europe/Moscow")
-  accentColor     String @default("#4f46e5")
+  accentColor     String @default("#0d9488")
+  // Фон витрины /book: заливка + опциональное фото (за контентом, z-index ниже)
+  pageBackgroundColor    String  @default("#f5f5f4")
+  pageBackgroundImageUrl String?
   logoUrl         String?
   minAdvanceHours Int    @default(2)
   slotStepMinutes Int    @default(30)

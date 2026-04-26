@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Запись клиентов — админ-панель",
-  description: "Услуги, расписание и публичная запись для клиентов",
+  title: "Онлайн-запись для мастеров — услуги и расписание",
+  description: "Панель и публичная запись: салон, ногтевой сервис, массаж и другие услуги частных мастеров",
 };
 
 export default function RootLayout({

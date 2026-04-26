@@ -163,7 +163,7 @@ export default function AdminSchedulePage() {
                             />
                             <button
                               type="button"
-                              className="text-sm text-indigo-600 hover:underline"
+                              className="text-sm text-teal-700 hover:underline"
                               onClick={async () => {
                                 const sm = toMinutes(editStart);
                                 const em = toMinutes(editEnd);
@@ -205,7 +205,7 @@ export default function AdminSchedulePage() {
                             </span>
                             <button
                               type="button"
-                              className="text-sm text-indigo-600 hover:underline"
+                              className="text-sm text-teal-700 hover:underline"
                               onClick={() => {
                                 setEditingId(s.id);
                                 setEditStart(parseHm(s.startMinutes));
@@ -237,7 +237,7 @@ export default function AdminSchedulePage() {
                   </ul>
                   <button
                     type="button"
-                    className="mt-2 text-xs text-indigo-600 hover:underline"
+                    className="mt-2 text-xs text-teal-700 hover:underline"
                     onClick={() => {
                       setAddInlineDay(day.dayOfWeek);
                       setAddInlineStart("09:00");
@@ -248,7 +248,7 @@ export default function AdminSchedulePage() {
                     + Добавить окно в этот день
                   </button>
                   {addInlineDay === day.dayOfWeek ? (
-                    <div className="mt-3 flex flex-wrap items-end gap-2 rounded-lg border border-indigo-200 bg-indigo-50/50 p-3 dark:border-indigo-800 dark:bg-indigo-950/30">
+                    <div className="mt-3 flex flex-wrap items-end gap-2 rounded-lg border border-teal-200 bg-teal-50/60 p-3 dark:border-teal-800 dark:bg-teal-950/30">
                       <p className="w-full text-xs text-zinc-600 dark:text-zinc-300">Время для нового окна</p>
                       <div>
                         <label className="text-xs text-zinc-500">С</label>
@@ -268,7 +268,7 @@ export default function AdminSchedulePage() {
                       </div>
                       <button
                         type="button"
-                        className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white"
+                        className="rounded-lg bg-teal-700 px-3 py-2 text-sm font-medium text-white"
                         onClick={async () => {
                           const sm = toMinutes(addInlineStart);
                           const em = toMinutes(addInlineEnd);
@@ -339,7 +339,7 @@ export default function AdminSchedulePage() {
               </div>
               <button
                 type="button"
-                className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white"
+                className="rounded-lg bg-teal-700 px-3 py-2 text-sm font-medium text-white"
                 onClick={async () => {
                   const sm = toMinutes(newStart);
                   const em = toMinutes(newEnd);

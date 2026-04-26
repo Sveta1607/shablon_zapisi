@@ -1,8 +1,13 @@
 @import "tailwindcss";
 
+/* Базовые токены: тёплый светлый фон и строгий тёмный текст — «салон/кабинет», не холодный офис */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #faf8f5;
+  --foreground: #1c1917;
+  /* Акцент: бирюзовый — спокойно для массажа и beauty, в паре с тёплым фоном выглядит ярко, но сдержанно */
+  --brand: #0f766e;
+  --brand-bright: #14b8a6;
+  --surface-elevated: #ffffff;
 }
 
 @theme inline {
@@ -14,13 +19,17 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0c0a09;
+    --foreground: #fafaf9;
+    --brand: #2dd4bf;
+    --brand-bright: #5eead4;
+    --surface-elevated: #1c1917;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Подключаем Geist из layout, а не Arial — единая типографика с остальным UI */
+  font-family: var(--font-sans), system-ui, sans-serif;
 }

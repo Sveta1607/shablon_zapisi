@@ -24,6 +24,10 @@
 .DS_Store
 *.pem
 
+# логотипы, загруженные владельцами (сама папка в репо через .gitkeep)
+public/uploads/orgs/*
+!public/uploads/orgs/.gitkeep
+
 # debug
 npm-debug.log*
 yarn-debug.log*

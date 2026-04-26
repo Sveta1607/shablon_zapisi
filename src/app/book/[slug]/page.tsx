@@ -5,9 +5,12 @@ import { addMinutes, parseISO } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { ru } from "date-fns/locale";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { hourGridSlotCount, reservationBlockMinutes, stepGridSlotCount } from "@/lib/slots";
+import { BookingVitrineBackground } from "@/components/book/BookingVitrineBackground";
+import { BookingDateCalendar } from "@/components/book/BookingDateCalendar";
+import { reservationBlockMinutes } from "@/lib/slots";
 
 /** Телефон: префикс +7, до 10 цифр после, всего максимум 12 символов */
 function formatRuPhoneInput(raw: string): string {
@@ -26,6 +29,8 @@ type OrgPublic = {
   timezone: string;
   slotStepMinutes: number;
   accentColor: string;
+  pageBackgroundColor: string;
+  pageBackgroundImageUrl: string | null;
   logoUrl: string | null;
   publicBookingEnabled: boolean;
   services: { id: string; name: string; durationMinutes: number; priceCents: number | null }[];
@@ -33,6 +38,8 @@ type OrgPublic = {
 
 export default function PublicBookPage() {
   const params = useParams();
+  const router = useRouter();
+  const { data: session } = useSession();
   const slug = params.slug as string;
   const [org, setOrg] = useState<OrgPublic | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -49,16 +56,30 @@ export default function PublicBookPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const service = useMemo(() => org?.services.find((s) => s.id === serviceId), [org, serviceId]);
-  const stepMin = org?.slotStepMinutes ?? 30;
 
+  // Один раз читаем JSON: и данные витрины, и поле error при 4xx/5xx (раньше любой сбой маскировался как «не найдена»)
   const loadOrg = useCallback(async () => {
-    const res = await fetch(`/api/public/${slug}/org`);
-    if (!res.ok) {
-      setErr("Страница не найдена");
+    if (!slug || String(slug).trim() === "") {
+      setErr("В ссылке не указан адрес витрины. Откройте страницу вида /book/ваш-slug из панели «Скопировать ссылку».");
       return;
     }
-    const data = await res.json();
-    setOrg(data);
+    const safeSlug = encodeURIComponent(String(slug));
+    // Без кэша: после смены фона в админке страница записи должна сразу подтянуть новые цвет/картинку
+    const res = await fetch(`/api/public/${safeSlug}/org`, { cache: "no-store" });
+    const data = (await res.json().catch(() => ({}))) as Partial<OrgPublic> & { error?: string };
+    if (!res.ok) {
+      if (typeof data.error === "string" && data.error.length > 0) {
+        setErr(data.error);
+        return;
+      }
+      if (res.status === 404) {
+        setErr("Витрина не найдена. Проверьте ссылку или зарегистрируйте организацию.");
+        return;
+      }
+      setErr("Не удалось загрузить витрину. Обновите страницу или проверьте, что dev-сервер запущен.");
+      return;
+    }
+    setOrg(data as OrgPublic);
   }, [slug]);
 
   useEffect(() => {
@@ -90,7 +111,7 @@ export default function PublicBookPage() {
   if (err) {
     return (
       <div className="flex min-h-full items-center justify-center p-6">
-        <p className="text-zinc-600">{err}</p>
+        <p className="text-stone-600">{err}</p>
       </div>
     );
   }
@@ -98,87 +119,125 @@ export default function PublicBookPage() {
   if (!org) {
     return (
       <div className="flex min-h-full items-center justify-center p-6">
-        <p className="text-zinc-500">Загрузка…</p>
+        <p className="text-stone-500">Загрузка…</p>
       </div>
     );
   }
 
-  const accent = org.accentColor || "#4f46e5";
+  // Акцент витрины: из настроек или тот же бирюзовый, что в теме (новый дефолт в схеме)
+  const accent = org.accentColor || "#0d9488";
+  // Фон страницы записи: цвет и опциональное фото (за контентом)
+  const pageBgRaw = org.pageBackgroundColor ?? "#f5f5f4";
+  const pageBg = /^#[0-9a-fA-F]{6}$/.test(pageBgRaw) ? pageBgRaw : "#f5f5f4";
+  const pageImg = org.pageBackgroundImageUrl ?? null;
+  // При фото-фоне заголовок вне белой карточки — лёгкая подложка, чтобы текст читался
+  const headerBox =
+    pageImg != null && pageImg !== ""
+      ? "rounded-2xl border border-stone-200/80 bg-white/80 px-3 py-4 shadow-sm backdrop-blur dark:border-stone-600/60 dark:bg-stone-900/70"
+      : "";
 
   // Владелец отключил приём онлайн в настройках — только контакты, без сценария записи
   if (!org.publicBookingEnabled) {
     return (
-      <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
+      <BookingVitrineBackground backgroundColor={pageBg} backgroundImageUrl={pageImg}>
         <div className="mx-auto max-w-lg px-4 py-10">
-          <header className="mb-8 text-center">
+          <header className={`mb-8 text-center ${headerBox}`}>
             {org.logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={org.logoUrl} alt="" className="mx-auto mb-4 h-14 w-auto object-contain" />
+              <img
+                src={org.logoUrl}
+                alt=""
+                className="mx-auto mb-4 w-full max-w-full h-auto max-h-[min(50vh,22rem)] object-contain"
+              />
             ) : null}
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">{org.businessName}</h1>
+            <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-50">{org.businessName}</h1>
             {org.description ? (
-              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400 whitespace-pre-wrap">{org.description}</p>
+              <p className="mt-2 text-sm text-stone-600 dark:text-stone-400 whitespace-pre-wrap">{org.description}</p>
             ) : null}
           </header>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-            <p className="text-sm text-zinc-700 dark:text-zinc-300">Онлайн-запись сейчас не ведётся.</p>
+          <div className="rounded-2xl border border-stone-200 bg-white p-6 text-center shadow-sm dark:border-stone-700 dark:bg-stone-900">
+            <p className="text-sm text-stone-700 dark:text-stone-300">Онлайн-запись сейчас не ведётся.</p>
             {org.phone ? (
               <p className="mt-4 text-base font-medium">
-                <a href={`tel:${org.phone}`} className="text-indigo-600" style={{ color: accent }}>
+                <a href={`tel:${org.phone}`} className="font-medium" style={{ color: accent }}>
                   {org.phone}
                 </a>
               </p>
             ) : null}
-            {org.emailContact ? <p className="mt-2 text-sm text-zinc-600">{org.emailContact}</p> : null}
+            {org.emailContact ? <p className="mt-2 text-sm text-stone-600">{org.emailContact}</p> : null}
           </div>
-          <p className="mt-8 text-center text-xs text-zinc-400">
+          <p className="mt-8 text-center text-xs text-stone-400">
             <Link href="/" className="hover:underline">
               На главную
             </Link>
           </p>
         </div>
-      </div>
+      </BookingVitrineBackground>
     );
   }
 
   if (done) {
     return (
-      <div className="mx-auto flex min-h-full max-w-lg flex-col justify-center px-4 py-16">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-          <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">Вы записаны</h1>
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Мы ждём вас. При необходимости свяжитесь с нами:</p>
+      <BookingVitrineBackground backgroundColor={pageBg} backgroundImageUrl={pageImg}>
+        <div className="mx-auto flex min-h-full max-w-lg flex-col justify-center px-4 py-16">
+        <div className="rounded-2xl border border-stone-200 bg-white p-8 text-center shadow-sm dark:border-stone-700 dark:bg-stone-900">
+          <h1 className="text-xl font-bold text-stone-900 dark:text-stone-50">Вы записаны</h1>
+          <p className="mt-2 text-sm text-stone-600 dark:text-stone-400">Мы ждём вас. При необходимости свяжитесь с нами:</p>
           {org.phone ? (
             <p className="mt-4 font-medium">
-              <a href={`tel:${org.phone}`} className="text-indigo-600" style={{ color: accent }}>
+              <a href={`tel:${org.phone}`} className="font-medium" style={{ color: accent }}>
                 {org.phone}
               </a>
             </p>
           ) : null}
+          {/* Кнопка «Назад»: владелец, проверяющий витрину под сессией, уходит в админку; остальные — в истории или на главную */}
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={() => {
+                if (session?.user) {
+                  router.push("/admin");
+                } else if (typeof window !== "undefined" && window.history.length > 1) {
+                  router.back();
+                } else {
+                  router.push("/");
+                }
+              }}
+              className="w-full rounded-xl border-2 border-stone-200 bg-stone-50 px-4 py-2.5 text-sm font-medium text-stone-800 transition hover:bg-stone-100 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-stone-700/80"
+            >
+              {session?.user ? "Назад в панель" : "Назад"}
+            </button>
+          </div>
         </div>
-      </div>
+        </div>
+      </BookingVitrineBackground>
     );
   }
 
   return (
-    <div className="min-h-full bg-zinc-50 dark:bg-zinc-950">
+    <BookingVitrineBackground backgroundColor={pageBg} backgroundImageUrl={pageImg}>
       <div className="mx-auto max-w-lg px-4 py-10">
-        <header className="mb-8 text-center">
+        <header className={`mb-8 text-center ${headerBox}`}>
           {org.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={org.logoUrl} alt="" className="mx-auto mb-4 h-14 w-auto object-contain" />
+            <img
+              src={org.logoUrl}
+              alt=""
+              className="mx-auto mb-4 w-full max-w-full h-auto max-h-[min(50vh,22rem)] object-contain"
+            />
           ) : null}
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">{org.businessName}</h1>
+          <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-50">{org.businessName}</h1>
           {org.description ? (
-            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400 whitespace-pre-wrap">{org.description}</p>
+            <p className="mt-2 text-sm text-stone-600 dark:text-stone-400 whitespace-pre-wrap">{org.description}</p>
           ) : null}
         </header>
 
-        <section className="space-y-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+        <section className="space-y-6 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm dark:border-stone-700 dark:bg-stone-900">
           <div>
-            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">1. Услуга</h2>
+            <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">1. Услуга</h2>
             <div className="mt-2 space-y-2">
               {org.services.length === 0 ? (
-                <p className="text-sm text-zinc-500">Пока нет доступных услуг</p>
+                <p className="text-sm text-stone-500">Пока нет доступных услуг</p>
               ) : (
                 org.services.map((s) => (
                   <button
@@ -191,7 +250,7 @@ export default function PublicBookPage() {
                     className={`w-full rounded-xl border px-4 py-3 text-left text-sm transition-colors ${
                       serviceId === s.id
                         ? "border-transparent text-white"
-                        : "border-zinc-200 hover:border-zinc-300 dark:border-zinc-600"
+                        : "border-stone-200 hover:border-stone-300 dark:border-stone-600"
                     }`}
                     style={
                       serviceId === s.id
@@ -208,38 +267,32 @@ export default function PublicBookPage() {
                 ))
               )}
             </div>
-            {service ? (
-              <p className="mt-3 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
-                Занимает {hourGridSlotCount(service.durationMinutes)} час. подряд (60 мин) и {stepGridSlotCount(service.durationMinutes, stepMin)}{" "}
-                подряд с шагом {stepMin} мин. Для 121–180 мин — три часа; больше 180 мин — четвёртый час и далее по
-                сетке.
-              </p>
-            ) : null}
           </div>
 
           {serviceId ? (
             <div>
-              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">2. Дата</h2>
-              <input
-                type="date"
-                className="mt-2 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-600 dark:bg-zinc-800"
+              <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">2. Дата</h2>
+              <BookingDateCalendar
+                key={dateStr ? dateStr.slice(0, 7) : "pick-date"}
                 value={dateStr}
-                onChange={(e) => {
-                  setDateStr(e.target.value);
+                onChange={(ymd) => {
+                  setDateStr(ymd);
                   setStartsAtIso(null);
                 }}
+                timezone={org.timezone}
+                accentColor={accent}
               />
-              <p className="mt-1 text-xs text-zinc-500">Часовой пояс: {org.timezone}</p>
+              <p className="mt-1 text-xs text-stone-500">Часовой пояс: {org.timezone}</p>
             </div>
           ) : null}
 
           {serviceId && dateStr ? (
             <div>
-              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">3. Время</h2>
+              <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">3. Время</h2>
               {slotLoading ? (
-                <p className="mt-2 text-sm text-zinc-500">Загрузка слотов…</p>
+                <p className="mt-2 text-sm text-stone-500">Загрузка слотов…</p>
               ) : slots.length === 0 ? (
-                <p className="mt-2 text-sm text-zinc-500">На этот день нет свободных окон</p>
+                <p className="mt-2 text-sm text-stone-500">На этот день нет свободных окон</p>
               ) : (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {slots.map((iso) => (
@@ -248,7 +301,7 @@ export default function PublicBookPage() {
                       type="button"
                       onClick={() => setStartsAtIso(iso)}
                       className={`rounded-lg border px-3 py-1.5 text-sm ${
-                        startsAtIso === iso ? "text-white" : "border-zinc-200 dark:border-zinc-600"
+                        startsAtIso === iso ? "text-white" : "border-stone-200 dark:border-stone-600"
                       }`}
                       style={
                         startsAtIso === iso
@@ -262,7 +315,7 @@ export default function PublicBookPage() {
                 </div>
               )}
               {startsAtIso && service ? (
-                <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
+                <p className="mt-2 text-xs text-stone-600 dark:text-stone-400">
                   Конец резерва на линии:{" "}
                   {formatInTimeZone(
                     addMinutes(parseISO(startsAtIso), reservationBlockMinutes(service.durationMinutes)),
@@ -278,12 +331,12 @@ export default function PublicBookPage() {
 
           {startsAtIso && service ? (
             <div>
-              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">4. Контакты</h2>
+              <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">4. Контакты</h2>
               <div className="mt-2 space-y-3">
                 <input
                   required
                   placeholder="Имя"
-                  className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-600 dark:bg-zinc-800"
+                  className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 dark:border-stone-600 dark:bg-stone-800"
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
                 />
@@ -294,22 +347,22 @@ export default function PublicBookPage() {
                   autoComplete="tel"
                   maxLength={12}
                   placeholder="+7XXXXXXXXXX"
-                  className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 font-mono text-sm dark:border-zinc-600 dark:bg-zinc-800"
+                  className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 font-mono text-sm dark:border-stone-600 dark:bg-stone-800"
                   value={clientPhone}
                   onChange={(e) => setClientPhone(formatRuPhoneInput(e.target.value))}
                 />
-                <p className="text-xs text-zinc-500">Формат: +7 и 10 цифр (не больше 12 символов)</p>
+                <p className="text-xs text-stone-500">Формат: +7 и 10 цифр (не больше 12 символов)</p>
                 <input
                   type="email"
                   placeholder="Email (необязательно)"
-                  className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-600 dark:bg-zinc-800"
+                  className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 dark:border-stone-600 dark:bg-stone-800"
                   value={clientEmail}
                   onChange={(e) => setClientEmail(e.target.value)}
                 />
                 <textarea
                   placeholder="Комментарий"
                   rows={2}
-                  className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-600 dark:bg-zinc-800"
+                  className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 dark:border-stone-600 dark:bg-stone-800"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                 />
@@ -358,12 +411,12 @@ export default function PublicBookPage() {
           ) : null}
         </section>
 
-        <p className="mt-8 text-center text-xs text-zinc-400">
+        <p className="mt-8 text-center text-xs text-stone-400">
           <Link href="/" className="hover:underline">
             На главную
           </Link>
         </p>
       </div>
-    </div>
+    </BookingVitrineBackground>
   );
 }

@@ -39,17 +39,17 @@ export default function AdminBookingsPage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <header>
         <h1 className="text-2xl font-bold tracking-tight">Записи</h1>
-        <p className="text-zinc-600 dark:text-zinc-400">Все заявки с публичной страницы, до 500 записей</p>
+        <p className="text-stone-600 dark:text-stone-400">Все заявки с публичной страницы, до 500 записей</p>
       </header>
 
       {loading ? (
-        <p className="text-sm text-zinc-500">Загрузка…</p>
+        <p className="text-sm text-stone-500">Загрузка…</p>
       ) : rows.length === 0 ? (
-        <p className="text-sm text-zinc-500">Пока нет записей</p>
+        <p className="text-sm text-stone-500">Пока нет записей</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+        <div className="overflow-x-auto rounded-xl border border-stone-200 dark:border-stone-700">
           <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/60">
+            <thead className="border-b border-stone-200 bg-stone-50/90 dark:border-stone-700 dark:bg-stone-800/60">
               <tr>
                 <th className="px-4 py-3 font-medium">Время ({tz})</th>
                 <th className="px-4 py-3 font-medium">Услуга</th>
@@ -60,7 +60,7 @@ export default function AdminBookingsPage() {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} className="border-b border-zinc-100 dark:border-zinc-800">
+                <tr key={r.id} className="border-b border-stone-100 dark:border-stone-800">
                   <td className="px-4 py-3 whitespace-nowrap">
                     {formatInTimeZone(r.startsAt, tz, "d MMM yyyy, HH:mm", { locale: ru })}
                   </td>
@@ -68,7 +68,7 @@ export default function AdminBookingsPage() {
                   <td className="px-4 py-3">
                     {r.clientName}
                     <br />
-                    <span className="text-zinc-500">{r.clientPhone}</span>
+                    <span className="text-stone-500">{r.clientPhone}</span>
                   </td>
                   <td className="px-4 py-3">{r.status === "CANCELLED" ? "Отменена" : "Активна"}</td>
                   <td className="px-4 py-3 text-right">

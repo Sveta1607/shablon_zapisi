@@ -17,10 +17,10 @@ export function AdminSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="flex w-56 shrink-0 flex-col border-r border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="border-b border-zinc-200 px-4 py-4 dark:border-zinc-800">
-        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Запись клиентов</p>
-        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Админ-панель</p>
+    <aside className="flex w-56 shrink-0 flex-col border-r border-stone-200 bg-gradient-to-b from-stone-50 to-stone-100/80 dark:border-stone-800 dark:from-stone-950 dark:to-stone-900">
+      <div className="border-b border-stone-200 px-4 py-4 dark:border-stone-800">
+        <p className="text-xs font-medium uppercase tracking-wide text-teal-800/80 dark:text-teal-300/80">Витрина записи</p>
+        <p className="text-sm font-semibold text-stone-900 dark:text-stone-100">Панель мастера</p>
       </div>
       <nav className="flex flex-1 flex-col gap-0.5 p-2">
         {items.map((item) => {
@@ -31,8 +31,8 @@ export function AdminSidebar() {
               href={item.href}
               className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 active
-                  ? "bg-indigo-600 text-white"
-                  : "text-zinc-700 hover:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  ? "bg-teal-700 text-white shadow-sm"
+                  : "text-stone-700 hover:bg-white/80 dark:text-stone-300 dark:hover:bg-stone-800"
               }`}
             >
               {item.label}
@@ -40,10 +40,10 @@ export function AdminSidebar() {
           );
         })}
       </nav>
-      <div className="border-t border-zinc-200 p-2 dark:border-zinc-800">
+      <div className="border-t border-stone-200 p-2 dark:border-stone-800">
         <button
           type="button"
-          className="w-full rounded-lg px-3 py-2 text-left text-sm text-zinc-600 hover:bg-zinc-200 dark:text-zinc-400 dark:hover:bg-zinc-800"
+          className="w-full rounded-lg px-3 py-2 text-left text-sm text-stone-600 hover:bg-white/80 dark:text-stone-400 dark:hover:bg-stone-800"
           onClick={() => signOut({ callbackUrl: "/" })}
         >
           Выйти

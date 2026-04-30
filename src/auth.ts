@@ -44,10 +44,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!parsed.success) return null;
         const { email, password } = parsed.data;
         // Rate limit по email снижает риск brute force даже без отдельного Redis на dev/starter-этапе
-        if (!consumeLoginRateLimit(email.toLowerCase())) return null;
+        if (!(await consumeLoginRateLimit(email.toLowerCase()))) return null;
         // Rate limit по IP добавляет дополнительный барьер против массовых попыток входа
         const ip = req?.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-        if (!consumeLoginRateLimit(ip)) return null;
+        if (!(await consumeLoginRateLimit(ip))) return null;
         const user = await prisma.user.findUnique({
           where: { email: email.toLowerCase() },
           include: { organization: { select: { suspended: true } } },

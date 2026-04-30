@@ -13,7 +13,7 @@ const bodySchema = z.object({
 export async function POST(req: Request) {
   // Лимит на endpoint нужен, чтобы не дать заспамить повторной отправкой писем
   const ip = getClientIp(req);
-  if (!consumeResetRateLimit(ip)) {
+  if (!(await consumeResetRateLimit(ip))) {
     return NextResponse.json({ error: "Слишком много попыток. Повторите позже." }, { status: 429 });
   }
   const json = await req.json().catch(() => null);

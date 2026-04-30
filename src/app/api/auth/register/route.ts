@@ -26,7 +26,7 @@ async function uniqueSlug(): Promise<string> {
 export async function POST(req: Request) {
   // Rate limit регистрации ограничивает массовые автоматические попытки с одного IP
   const ip = getClientIp(req);
-  if (!consumeRegisterRateLimit(ip)) {
+  if (!(await consumeRegisterRateLimit(ip))) {
     return NextResponse.json({ error: "Слишком много попыток. Повторите позже." }, { status: 429 });
   }
   const json = await req.json().catch(() => null);
@@ -38,7 +38,37 @@ export async function POST(req: Request) {
   const lower = email.toLowerCase();
   const taken = await prisma.user.findUnique({ where: { email: lower } });
   if (taken) {
-    return NextResponse.json({ error: "Этот email уже зарегистрирован" }, { status: 409 });
+    // Если email уже подтвержден, не даем повторно регистрировать существующий аккаунт
+    if (taken.emailVerifiedAt) {
+      return NextResponse.json({ error: "Этот email уже зарегистрирован" }, { status: 409 });
+    }
+    // Для неподтвержденного аккаунта перевыпускаем ссылку подтверждения вместо ошибки
+    const { rawToken: retryRawToken, tokenHash: retryTokenHash } = createRawTokenAndHash();
+    await prisma.$transaction(async (tx) => {
+      await tx.emailVerificationToken.updateMany({
+        where: { userId: taken.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      await tx.emailVerificationToken.create({
+        data: {
+          userId: taken.id,
+          tokenHash: retryTokenHash,
+          expiresAt: addHours(new Date(), 24),
+        },
+      });
+    });
+    const resendResult = await sendAuthActionLink({
+      to: lower,
+      kind: "verify-email",
+      token: retryRawToken,
+    });
+    return NextResponse.json({
+      ok: true,
+      requiresEmailVerification: true,
+      alreadyExistsUnverified: true,
+      emailDelivery: resendResult.delivered ? "sent" : "fallback-log",
+      message: "Аккаунт с этим email уже создан, отправили новую ссылку подтверждения.",
+    });
   }
   const passwordHash = await bcrypt.hash(password, 12);
   const slug = await uniqueSlug();
@@ -77,7 +107,12 @@ export async function POST(req: Request) {
     });
   });
   // Отправка ссылки завершает процесс регистрации и переводит пользователя в подтвержденный статус после клика
-  await sendAuthActionLink({ to: lower, kind: "verify-email", token: rawToken });
+  const mailResult = await sendAuthActionLink({ to: lower, kind: "verify-email", token: rawToken });
 
-  return NextResponse.json({ ok: true, slug, requiresEmailVerification: true });
+  return NextResponse.json({
+    ok: true,
+    slug,
+    requiresEmailVerification: true,
+    emailDelivery: mailResult.delivered ? "sent" : "fallback-log",
+  });
 }

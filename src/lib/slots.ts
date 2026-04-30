@@ -2,7 +2,8 @@
 // Длительность услуги в календаре «накрывает» ceil(мин/60) часовых ячеек подряд (61–120 мин → 2 ч, 121–180 → 3 ч и т.д.)
 import { addMinutes, isBefore } from "date-fns";
 import { formatInTimeZone, toDate } from "date-fns-tz";
-import type { Organization, WeeklySlot } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+import type { Booking, Organization, PrismaClient, Service, WeeklySlot } from "@prisma/client";
 
 type OrgLike = Pick<
   Organization,
@@ -92,4 +93,111 @@ export function computeAvailableSlots(params: {
   }
 
   return out.sort((a, b) => a.getTime() - b.getTime());
+}
+
+// Нормализация заголовка идемпотентности: пустые и слишком длинные ключи отбрасываем
+export function normalizeIdempotencyKey(raw: string | null): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (trimmed.length < 8 || trimmed.length > 128) return null;
+  return trimmed;
+}
+
+// Возвращает шаги сетки (например, по 30 минут), которые блокирует бронь
+export function buildReservedStepStarts(
+  startsAt: Date,
+  reservationMinutes: number,
+  stepMinutes: number
+): Date[] {
+  const safeStep = Math.max(1, stepMinutes);
+  const steps = Math.max(1, Math.ceil(reservationMinutes / safeStep));
+  return Array.from({ length: steps }, (_, i) => addMinutes(startsAt, i * safeStep));
+}
+
+type CreatePublicBookingInput = {
+  organizationId: string;
+  serviceId: string;
+  clientName: string;
+  clientPhone: string;
+  clientEmail?: string | null;
+  notes?: string | null;
+  startsAt: Date;
+  endsAt: Date;
+  slotStepMinutes: number;
+  reservationMinutes: number;
+  idempotencyKey?: string | null;
+};
+
+type CreatePublicBookingResult =
+  | { kind: "created"; booking: Booking & { service: Service } }
+  | { kind: "replayed"; booking: Booking & { service: Service } }
+  | { kind: "conflict" };
+
+// Атомарное создание брони + блокировок шагов: БД сама остановит конкурирующие запросы
+export async function createPublicBookingWithLocks(
+  prisma: PrismaClient,
+  input: CreatePublicBookingInput
+): Promise<CreatePublicBookingResult> {
+  const stepStarts = buildReservedStepStarts(input.startsAt, input.reservationMinutes, input.slotStepMinutes);
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      if (input.idempotencyKey) {
+        // Повторный запрос с тем же ключом должен вернуть уже созданную запись, не создавая дубль
+        const existing = await tx.booking.findFirst({
+          where: {
+            organizationId: input.organizationId,
+            idempotencyKey: input.idempotencyKey,
+          },
+          include: { service: true },
+        });
+        if (existing) {
+          return { kind: "replayed", booking: existing } as const;
+        }
+      }
+
+      const booking = await tx.booking.create({
+        data: {
+          organizationId: input.organizationId,
+          serviceId: input.serviceId,
+          clientName: input.clientName,
+          clientPhone: input.clientPhone,
+          clientEmail: input.clientEmail ?? null,
+          notes: input.notes ?? null,
+          startsAt: input.startsAt,
+          endsAt: input.endsAt,
+          idempotencyKey: input.idempotencyKey ?? null,
+          status: "CONFIRMED",
+        },
+        include: { service: true },
+      });
+
+      // Отдельная таблица lock-строк дает устойчивую защиту от гонок через unique constraint
+      await tx.bookingSlotLock.createMany({
+        data: stepStarts.map((slotStart) => ({
+          organizationId: input.organizationId,
+          bookingId: booking.id,
+          slotStart,
+        })),
+      });
+
+      return { kind: "created", booking } as const;
+    });
+    return result;
+  } catch (error) {
+    // P2002 = нарушение уникальности: слот уже занят или такой idempotency key уже использован
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      if (input.idempotencyKey) {
+        const replayed = await prisma.booking.findFirst({
+          where: {
+            organizationId: input.organizationId,
+            idempotencyKey: input.idempotencyKey,
+          },
+          include: { service: true },
+        });
+        if (replayed) return { kind: "replayed", booking: replayed };
+      }
+      return { kind: "conflict" };
+    }
+    throw error;
+  }
 }

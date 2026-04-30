@@ -52,6 +52,9 @@ export default function PublicBookPage() {
   const [clientPhone, setClientPhone] = useState("+7");
   const [clientEmail, setClientEmail] = useState("");
   const [notes, setNotes] = useState("");
+  // Флаги валидации нужны, чтобы подсвечивать незаполненные поля до отправки на сервер
+  const [showRequiredHint, setShowRequiredHint] = useState(false);
+  const [phoneTouched, setPhoneTouched] = useState(false);
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -83,12 +86,14 @@ export default function PublicBookPage() {
   }, [slug]);
 
   useEffect(() => {
+    // Загружаем данные витрины по slug при открытии страницы.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadOrg();
   }, [loadOrg]);
 
   useEffect(() => {
     if (!serviceId || !dateStr || !org) {
-      setSlots([]);
+      // Пока не выбраны услуга и дата, список слотов не запрашиваем и ничего не перерисовываем.
       return;
     }
     let cancelled = false;
@@ -333,10 +338,20 @@ export default function PublicBookPage() {
             <div>
               <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">4. Контакты</h2>
               <div className="mt-2 space-y-3">
+                {/* Подсказка нужна, чтобы явно сообщить пользователю причину блокировки отправки формы */}
+                {showRequiredHint ? (
+                  <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                    Необходимо заполнить обязательные поля.
+                  </p>
+                ) : null}
                 <input
                   required
                   placeholder="Имя"
-                  className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 dark:border-stone-600 dark:bg-stone-800"
+                  className={`w-full rounded-lg border bg-white px-3 py-2 dark:bg-stone-800 ${
+                    showRequiredHint && !clientName.trim()
+                      ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                      : "border-stone-300 dark:border-stone-600"
+                  }`}
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
                 />
@@ -347,9 +362,14 @@ export default function PublicBookPage() {
                   autoComplete="tel"
                   maxLength={12}
                   placeholder="+7XXXXXXXXXX"
-                  className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 font-mono text-sm dark:border-stone-600 dark:bg-stone-800"
+                  className={`w-full rounded-lg border bg-white px-3 py-2 font-mono text-sm dark:bg-stone-800 ${
+                    (showRequiredHint || phoneTouched) && !/^\+7[0-9]{10}$/.test(clientPhone.trim())
+                      ? "border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                      : "border-stone-300 dark:border-stone-600"
+                  }`}
                   value={clientPhone}
                   onChange={(e) => setClientPhone(formatRuPhoneInput(e.target.value))}
+                  onBlur={() => setPhoneTouched(true)}
                 />
                 <p className="text-xs text-stone-500">Формат: +7 и 10 цифр (не больше 12 символов)</p>
                 <input
@@ -375,14 +395,18 @@ export default function PublicBookPage() {
                     const name = clientName.trim();
                     const phone = clientPhone.trim();
                     const email = clientEmail.trim();
+                    // Локальная проверка нужна, чтобы сразу подсветить пустые поля и не делать лишний API-запрос
+                    setPhoneTouched(true);
                     if (!name) {
-                      alert("Укажите имя.");
+                      setShowRequiredHint(true);
                       return;
                     }
                     if (!/^\+7[0-9]{10}$/.test(phone)) {
-                      alert("Телефон: +7 и 10 цифр (12 символов).");
+                      setShowRequiredHint(true);
                       return;
                     }
+                    // После успешной локальной проверки скрываем подсказку об обязательных полях
+                    setShowRequiredHint(false);
                     setSubmitting(true);
                     const res = await fetch(`/api/public/${slug}/book`, {
                       method: "POST",

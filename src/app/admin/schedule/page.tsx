@@ -72,6 +72,8 @@ export default function AdminSchedulePage() {
   }, []);
 
   useEffect(() => {
+    // Первичная загрузка всех частей расписания (недельные окна, исключения, закрытия) с API.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load().finally(() => setLoading(false));
   }, [load]);
 
@@ -147,6 +149,8 @@ export default function AdminSchedulePage() {
   // Переход в «одна дата» сбрасывает черновой список, чтобы не смешивать сценарии
   useEffect(() => {
     if (blockMode === "single") {
+      // При переходе в режим одной даты очищаем пакетный список, чтобы не смешивать сценарии.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPendingBlockDates([]);
     }
   }, [blockMode]);

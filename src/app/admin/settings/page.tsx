@@ -164,6 +164,8 @@ export default function AdminSettingsPage() {
   }, [org?.pageBackgroundImageUrl]);
 
   useEffect(() => {
+    // Первичная загрузка настроек организации: читаем данные из API и заполняем форму.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load().finally(() => setLoading(false));
   }, [load]);
 

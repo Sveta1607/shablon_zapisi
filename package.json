@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3002",
+    "dev": "next dev --webpack -p 3002",
     "build": "prisma generate && next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "test:booking-smoke": "node scripts/booking-reliability.smoke.mjs",
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",

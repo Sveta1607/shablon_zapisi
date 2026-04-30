@@ -1,8 +1,11 @@
 // Регистрация владельца: пользователь + организация со slug + расписание по умолчанию (вся неделя 9–18, включая сб и вс)
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { addHours } from "date-fns";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { sendAuthActionLink } from "@/lib/auth-mail";
+import { consumeRegisterRateLimit, createRawTokenAndHash, getClientIp } from "@/lib/auth-security";
 
 const bodySchema = z.object({
   email: z.string().email(),
@@ -21,6 +24,11 @@ async function uniqueSlug(): Promise<string> {
 }
 
 export async function POST(req: Request) {
+  // Rate limit регистрации ограничивает массовые автоматические попытки с одного IP
+  const ip = getClientIp(req);
+  if (!consumeRegisterRateLimit(ip)) {
+    return NextResponse.json({ error: "Слишком много попыток. Повторите позже." }, { status: 429 });
+  }
   const json = await req.json().catch(() => null);
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
@@ -39,9 +47,18 @@ export async function POST(req: Request) {
   const startMinutes = 9 * 60;
   const endMinutes = 18 * 60;
 
+  const { rawToken, tokenHash } = createRawTokenAndHash();
   await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
       data: { email: lower, passwordHash, name: name ?? null },
+    });
+    // Токен подтверждения email создается сразу при регистрации, чтобы вход был доступен только после верификации
+    await tx.emailVerificationToken.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt: addHours(new Date(), 24),
+      },
     });
     const org = await tx.organization.create({
       data: {
@@ -59,6 +76,8 @@ export async function POST(req: Request) {
       })),
     });
   });
+  // Отправка ссылки завершает процесс регистрации и переводит пользователя в подтвержденный статус после клика
+  await sendAuthActionLink({ to: lower, kind: "verify-email", token: rawToken });
 
-  return NextResponse.json({ ok: true, slug });
+  return NextResponse.json({ ok: true, slug, requiresEmailVerification: true });
 }

@@ -31,6 +31,8 @@ export default function AdminServicesPage() {
   }, []);
 
   useEffect(() => {
+    // Первичная загрузка списка при входе на экран — асинхронный fetch обновляет state после ответа API.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load().finally(() => setLoading(false));
   }, [load]);
 

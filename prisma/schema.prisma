@@ -4,6 +4,7 @@ generator client {
 }
 
 datasource db {
+  // Временный откат на SQLite, чтобы сайт снова работал локально без внешней БД.
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }
@@ -14,10 +15,20 @@ model User {
   email        String   @unique
   passwordHash String
   name         String?
+  // Дата подтверждения email нужна, чтобы закрыть вход до верификации почты
+  emailVerifiedAt DateTime?
+  // Счетчик неудачных логинов нужен для lockout после серии ошибочных попыток
+  failedLoginAttempts Int      @default(0)
+  // Временная блокировка входа до указанного момента
+  lockoutUntil DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   organization Organization?
+  // Токены подтверждения email хранятся отдельно, чтобы можно было безопасно перевыпускать ссылки
+  emailVerificationTokens EmailVerificationToken[]
+  // Токены сброса пароля хранятся отдельно с TTL и одноразовым использованием
+  passwordResetTokens PasswordResetToken[]
 }
 
 // Организация: один владелец, публичный slug для ссылки /book/[slug]
@@ -53,6 +64,8 @@ model Organization {
   weeklySlots  WeeklySlot[]
   adHocDaySlots AdHocDaySlot[]
   bookings     Booking[]
+  // Отдельные строки блокировок шагов занятости для защиты от конкурентных записей
+  slotLocks    BookingSlotLock[]
   blockedDates BlockedDate[]
 }
 
@@ -116,9 +129,57 @@ model Booking {
   clientEmail String?
   notes       String?
 
-  startsAt DateTime
-  endsAt   DateTime
-  status   String   @default("CONFIRMED")
+  startsAt        DateTime
+  endsAt          DateTime
+  // Идемпотентный ключ для безопасных повторов одного и того же запроса на запись
+  idempotencyKey String?
+  // Статус оставлен строкой из-за ограничения SQLite по enum в текущей схеме
+  status         String  @default("CONFIRMED")
 
   createdAt DateTime @default(now())
+
+  // Связанные блокировки шагов сетки: их уникальность защищает от гонок и дублей
+  slotLocks BookingSlotLock[]
+
+  @@unique([organizationId, idempotencyKey])
+}
+
+// Блокировка занятости шага расписания (например, каждые 30 минут) для брони
+model BookingSlotLock {
+  id             String       @id @default(cuid())
+  organizationId String
+  bookingId      String
+  slotStart      DateTime
+  booking        Booking      @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Уникальный шаг календаря в рамках организации — гарант от double-booking при конкуренции
+  @@unique([organizationId, slotStart])
+  @@index([bookingId])
+}
+
+// Одноразовый токен подтверждения email с дедлайном действия
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+// Одноразовый токен сброса пароля с дедлайном действия
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
 }

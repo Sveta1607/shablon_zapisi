@@ -30,6 +30,8 @@ export default function AdminBookingsPage() {
   }, []);
 
   useEffect(() => {
+    // Первичная загрузка таблицы записей: запросы идут один раз при монтировании страницы.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load().finally(() => setLoading(false));
   }, [load]);
 

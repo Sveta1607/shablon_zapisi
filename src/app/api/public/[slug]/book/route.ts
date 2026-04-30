@@ -4,7 +4,12 @@ import { NextResponse } from "next/server";
 import { formatInTimeZone, toDate } from "date-fns-tz";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { computeAvailableSlots, reservationBlockMinutes } from "@/lib/slots";
+import {
+  computeAvailableSlots,
+  createPublicBookingWithLocks,
+  normalizeIdempotencyKey,
+  reservationBlockMinutes,
+} from "@/lib/slots";
 
 // Телефон: ровно 12 символов — +7 и 10 цифр; email не обязателен
 const bodySchema = z.object({
@@ -30,6 +35,8 @@ const bodySchema = z.object({
 
 export async function POST(req: Request, ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
+  // Заголовок идемпотентности делает безопасными сетевые ретраи и двойные submit
+  const idempotencyKey = normalizeIdempotencyKey(req.headers.get("Idempotency-Key"));
   const json = await req.json().catch(() => null);
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
@@ -98,49 +105,40 @@ export async function POST(req: Request, ctx: { params: Promise<{ slug: string }
 
   const match = allowed.some((d) => Math.abs(d.getTime() - startsAt.getTime()) < 60 * 1000);
   if (!match) {
-    return NextResponse.json({ error: "Выбранное время больше недоступно" }, { status: 409 });
+    // Единый контракт конфликта, чтобы фронт одинаково обрабатывал устаревший слот
+    return NextResponse.json(
+      { error: "SLOT_CONFLICT", message: "Выбранное время больше недоступно" },
+      { status: 409 }
+    );
   }
 
   const blockMin = reservationBlockMinutes(service.durationMinutes);
   const endsAt = addMinutes(startsAt, blockMin);
 
-  function intervalsOverlap(s1: Date, e1: Date, s2: Date, e2: Date): boolean {
-    return s1 < e2 && e1 > s2;
-  }
-
-  const others = await prisma.booking.findMany({
-    where: {
-      organizationId: org.id,
-      status: { not: "CANCELLED" },
-      startsAt: { lt: endsAt },
-    },
-    include: { service: { select: { durationMinutes: true } } },
-  });
-  const taken = others.some((b) =>
-    intervalsOverlap(
-      startsAt,
-      endsAt,
-      b.startsAt,
-      addMinutes(b.startsAt, reservationBlockMinutes(b.service.durationMinutes))
-    )
-  );
-  if (taken) {
-    return NextResponse.json({ error: "Место только что заняли, выберите другое время" }, { status: 409 });
-  }
-
-  const booking = await prisma.booking.create({
-    data: {
-      organizationId: org.id,
-      serviceId: service.id,
-      clientName: parsed.data.clientName,
-      clientPhone: parsed.data.clientPhone,
-      clientEmail: parsed.data.clientEmail ?? null,
-      notes: parsed.data.notes ?? null,
-      startsAt,
-      endsAt,
-    },
-    include: { service: true },
+  // Транзакционный create + lock-строки в БД: так закрываются гонки конкурентных запросов
+  const result = await createPublicBookingWithLocks(prisma, {
+    organizationId: org.id,
+    serviceId: service.id,
+    clientName: parsed.data.clientName,
+    clientPhone: parsed.data.clientPhone,
+    clientEmail: parsed.data.clientEmail ?? null,
+    notes: parsed.data.notes ?? null,
+    startsAt,
+    endsAt,
+    slotStepMinutes: org.slotStepMinutes,
+    reservationMinutes: blockMin,
+    idempotencyKey,
   });
 
-  return NextResponse.json(booking, { status: 201 });
+  if (result.kind === "conflict") {
+    return NextResponse.json(
+      { error: "SLOT_CONFLICT", message: "Место только что заняли, выберите другое время" },
+      { status: 409 }
+    );
+  }
+  if (result.kind === "replayed") {
+    return NextResponse.json({ ...result.booking, replayed: true }, { status: 200 });
+  }
+
+  return NextResponse.json(result.booking, { status: 201 });
 }

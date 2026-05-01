@@ -81,11 +81,11 @@ function normalizeOrgPatchJson(raw: unknown): unknown {
   return o;
 }
 
-/** Расшифровка сбоя Prisma/SQLite для ответа клиенту (без общих фраз «перезапустите сервер») */
+/** Расшифровка сбоя Prisma/PostgreSQL для ответа клиенту */
 function formatPrismaSaveError(e: unknown): string {
   if (e instanceof Prisma.PrismaClientKnownRequestError) {
     if (e.code === "P2021" || e.code === "P2022") {
-      return `в таблице нет колонки из схемы (${e.code}). В папке saas: npx prisma db push, затем перезапуск dev`;
+      return `в таблице нет колонки из схемы (${e.code}). Выполните: npx prisma migrate deploy (или db push) к Supabase`;
     }
     return `${e.code}: ${e.message}`;
   }
@@ -95,10 +95,10 @@ function formatPrismaSaveError(e: unknown): string {
   if (e instanceof Error) {
     const m = e.message;
     if (/Unknown argument|pageBackgroundColor/i.test(m)) {
-      return `${m} (если в тексте «Unknown argument pageBackground*», выполните: остановить dev, удалить saas\\node_modules\\.prisma, npx prisma generate; при EPERM вынесите проект с OneDrive)`;
+      return `${m} (остановите dev, удалите node_modules/.prisma при необходимости, npx prisma generate)`;
     }
-    if (/readonly|SQLITE_READONLY|locked|SQLITE_BUSY|EPERM|no such column/i.test(m)) {
-      return `${m} — закройте Prisma Studio; при no such column: npx prisma db push в saas. OneDrive: вынесите проект из синхронизации`;
+    if (/EPERM|ECONNREFUSED|timeout|P1001/i.test(m)) {
+      return `${m} — проверьте DATABASE_URL и доступ к Supabase; при EPERM на Windows вынесите проект из OneDrive`;
     }
     return m;
   }
@@ -169,11 +169,9 @@ export async function PATCH(req: Request) {
       ? oldPageImgUrl.replace("/uploads/orgs/", "").replace(/^\/+/, "")
       : null;
 
-  // Поля pageBackground* добавлены в схему позже: при неудачном prisma generate (часто EPERM на OneDrive) рантайм-клиент без них.
-  // Остальные поля — через Prisma; фон — через $executeRaw к таблице "Organization" (колонки после db push уже в SQLite).
+  // Фон витрины: часть полей через Prisma, часть через raw UPDATE (историческая совместимость с загрузкой файлов).
   const { pageBackgroundColor: pbc, pageBackgroundImageUrl: pbi, ...rest } = data;
   const hasRest = Object.keys(rest).length > 0;
-  const hasBg = pbc !== undefined || pbi !== undefined;
   const orgId = ctx.organization.id;
 
   let updated: NonNullable<Awaited<ReturnType<typeof prisma.organization.findUnique>>>;

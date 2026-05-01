@@ -1,4 +1,4 @@
-// Загрузка организации владельца по id пользователя из сессии; проверка suspended при запросах к API
+// Загрузка организации владельца по id из сессии NextAuth; проверка suspended в API админки
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -20,7 +20,6 @@ export async function requireOrganization() {
   return { ...got, organization: org };
 }
 
-/** Ответ 403, если арендатор «заморожен» вами на стороне платформы (поле Organization.suspended) */
 export function rejectIfOrganizationSuspended(organization: { suspended: boolean }): NextResponse | null {
   if (organization.suspended) {
     return NextResponse.json({ error: "Аккаунт отключён администратором платформы" }, { status: 403 });

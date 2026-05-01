@@ -41,12 +41,14 @@ export default async function AdminDashboardPage() {
     },
   });
 
+  const greetName = session.user?.name || session.user?.email;
+
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <header className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight">Обзор</h1>
         <p className="text-stone-600 dark:text-stone-400">
-          Добро пожаловать, {session.user?.name || session.user?.email}. Ближайших активных записей: {upcoming}.
+          Добро пожаловать, {greetName}. Ближайших активных записей: {upcoming}.
         </p>
       </header>
 

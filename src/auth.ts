@@ -1,23 +1,22 @@
-// Конфигурация Auth.js (NextAuth v5): вход по email/паролю, JWT-сессия
+// NextAuth v5: JWT-сессия, вход по email/паролю и опционально Google OAuth
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
-import { z } from "zod";
 import { addMilliseconds } from "date-fns";
-import { prisma } from "@/lib/prisma";
+import { z } from "zod";
 import {
   consumeLoginRateLimit,
   LOCKOUT_MS,
   MAX_FAILED_LOGIN_ATTEMPTS,
 } from "@/lib/auth-security";
+import { prisma } from "@/lib/prisma";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
 });
 
-// Генерация уникального slug нужна для авто-создания организации при первом Google-входе
 async function uniqueOrgSlug(): Promise<string> {
   for (let i = 0; i < 8; i++) {
     const slug = Math.random().toString(36).slice(2, 10);
@@ -43,21 +42,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const parsed = credentialsSchema.safeParse(raw);
         if (!parsed.success) return null;
         const { email, password } = parsed.data;
-        // Rate limit по email снижает риск brute force даже без отдельного Redis на dev/starter-этапе
         if (!(await consumeLoginRateLimit(email.toLowerCase()))) return null;
-        // Rate limit по IP добавляет дополнительный барьер против массовых попыток входа
         const ip = req?.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
         if (!(await consumeLoginRateLimit(ip))) return null;
+
         const user = await prisma.user.findUnique({
           where: { email: email.toLowerCase() },
           include: { organization: { select: { suspended: true } } },
         });
         if (!user) return null;
         if (user.organization?.suspended) return null;
-        // Блокировка учетной записи временно останавливает новые попытки после серии ошибок
         if (user.lockoutUntil && user.lockoutUntil > new Date()) return null;
-        // Не пускаем в credentials-вход без подтвержденной почты, чтобы закрыть невалидные регистрации
-        if (!user.emailVerifiedAt) return null;
+
         const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok) {
           const nextAttempts = user.failedLoginAttempts + 1;
@@ -71,17 +67,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           });
           return null;
         }
-        // Успешный вход сбрасывает счетчик ошибок и снимает lockout, чтобы не блокировать легитимного пользователя
+
         if (user.failedLoginAttempts !== 0 || user.lockoutUntil) {
           await prisma.user.update({
             where: { id: user.id },
             data: { failedLoginAttempts: 0, lockoutUntil: null },
           });
         }
+
         return { id: user.id, email: user.email, name: user.name ?? undefined };
       },
     }),
-    // OAuth-провайдер Google включается только если заданы env, чтобы не ломать локальную разработку без ключей
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
       ? [
           Google({
@@ -92,22 +88,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       : []),
   ],
   callbacks: {
-    // На Google-входе гарантируем наличие локального пользователя/организации, чтобы админка работала единообразно
     async signIn({ user, account }) {
       if (account?.provider !== "google" || !user.email) return true;
       const lower = user.email.toLowerCase();
       const existing = await prisma.user.findUnique({ where: { email: lower } });
-      if (existing) {
-        if (!existing.emailVerifiedAt) {
-          await prisma.user.update({
-            where: { id: existing.id },
-            data: { emailVerifiedAt: new Date() },
-          });
-        }
-        return true;
-      }
+      if (existing) return true;
+
       const fallbackHash = await bcrypt.hash(`${lower}:${Date.now()}`, 10);
-      // Для новых OAuth-пользователей создаем базовую организацию и дефолтное расписание, как при обычной регистрации
       await prisma.$transaction(async (tx) => {
         const created = await tx.user.create({
           data: {
@@ -136,20 +123,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       });
       return true;
     },
-    async jwt({ token, user }) {
-      if (user?.email) {
-        const dbUser = await prisma.user.findUnique({
-          where: { email: user.email.toLowerCase() },
-          select: { id: true },
-        });
-        if (dbUser) token.sub = dbUser.id;
+    async jwt({ token, user, account }) {
+      if (user?.email && account?.provider === "google") {
+        const dbUser = await prisma.user.findUnique({ where: { email: user.email.toLowerCase() } });
+        if (dbUser) {
+          token.sub = dbUser.id;
+          token.email = dbUser.email;
+          token.name = dbUser.name ?? user.name;
+        }
       } else if (user?.id) {
         token.sub = user.id;
+        if (user.email) token.email = user.email;
+        if (user.name !== undefined) token.name = user.name;
       }
       return token;
     },
-    session({ session, token }) {
-      if (session.user && token.sub) session.user.id = token.sub;
+    async session({ session, token }) {
+      if (session.user && token.sub) {
+        session.user.id = token.sub;
+      }
       return session;
     },
   },

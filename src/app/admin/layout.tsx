@@ -1,4 +1,4 @@
-// Общий каркас админки: проверка сессии на сервере (без Edge-middleware — там нельзя тянуть Prisma)
+// Каркас админки: сессия NextAuth и проверка Organization.suspended
 import { auth } from "@/auth";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { prisma } from "@/lib/prisma";
@@ -9,7 +9,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!session?.user?.id) {
     redirect("/login?callbackUrl=/admin");
   }
-  // Заблокированный вами арендатор (Organization.suspended) — без доступа в админку
+
   const org = await prisma.organization.findUnique({ where: { ownerId: session.user.id } });
   if (org?.suspended) {
     redirect("/account-suspended");

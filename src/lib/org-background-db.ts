@@ -1,9 +1,8 @@
-// Чтение колонок фона витрины из SQLite: при «битом» prisma generate findUnique не возвращает pageBackground*
+// Чтение колонок фона витрины прямым SQL — запасной путь, если findUnique не отдаёт нужные поля
 import { prisma } from "@/lib/prisma";
 
 export type OrgBackgroundRow = { pageBackgroundColor: string; pageBackgroundImageUrl: string | null };
 
-/** Прямой SELECT: работает даже если @prisma/client сгенерирован без этих полей в DMMF */
 export async function readOrgBackgroundFromDb(orgId: string): Promise<OrgBackgroundRow | null> {
   try {
     const rows = await prisma.$queryRaw<OrgBackgroundRow[]>`
@@ -15,7 +14,6 @@ export async function readOrgBackgroundFromDb(orgId: string): Promise<OrgBackgro
   }
 }
 
-/** Подмешиваем фон в объект org из findUnique, чтобы JSON для админки и публичного API был полным */
 export function mergeOrgWithBackground<T extends { id: string }>(
   row: T,
   bg: OrgBackgroundRow | null
@@ -26,10 +24,6 @@ export function mergeOrgWithBackground<T extends { id: string }>(
   return { ...row, pageBackgroundColor: bg.pageBackgroundColor, pageBackgroundImageUrl: bg.pageBackgroundImageUrl };
 }
 
-/**
- * Публичная витрина: фон из SQLite обязан попасть в JSON, даже если в Prisma select полей нет.
- * Без колонок в БД (bg === null) — цвет/картинка по умолчанию.
- */
 export function applyVitrineBackground<T extends { id: string }>(
   row: T,
   bg: OrgBackgroundRow | null

@@ -1,18 +1,18 @@
-// Регистрация: создаёт пользователя, организацию и расписание по умолчанию, затем перенаправляет на вход
+// Регистрация через API: пользователь сразу активен, затем автоматический вход по credentials
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useState } from "react";
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [error, setError] = useState<string | null>(null);
-  // Флаг успешной регистрации нужен, чтобы попросить пользователя подтвердить email до входа
-  const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
   return (
@@ -25,21 +25,35 @@ export default function RegisterPage() {
           onSubmit={async (e) => {
             e.preventDefault();
             setError(null);
-            setSuccess(false);
             setLoading(true);
             const res = await fetch("/api/auth/register", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ email, password, name: name || undefined, businessName }),
+              body: JSON.stringify({
+                email: email.trim().toLowerCase(),
+                password,
+                name: name.trim() || undefined,
+                businessName: businessName.trim(),
+              }),
             });
             const data = await res.json().catch(() => ({}));
-            setLoading(false);
             if (!res.ok) {
+              setLoading(false);
               setError(typeof data.error === "string" ? data.error : "Ошибка регистрации");
               return;
             }
-            // После регистрации не логиним сразу: вход разрешается только после подтверждения email
-            setSuccess(true);
+            const sign = await signIn("credentials", {
+              email: email.trim().toLowerCase(),
+              password,
+              redirect: false,
+            });
+            setLoading(false);
+            if (sign?.error) {
+              setError("Аккаунт создан, но не удалось войти автоматически. Войдите вручную.");
+              return;
+            }
+            router.push("/admin");
+            router.refresh();
           }}
         >
           <div>
@@ -84,12 +98,6 @@ export default function RegisterPage() {
             />
           </div>
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
-          {/* Плашка успеха объясняет следующий шаг: подтвердить email и затем войти */}
-          {success ? (
-            <p className="text-sm text-emerald-700 dark:text-emerald-300">
-              Аккаунт создан. Проверьте почту и подтвердите email, затем войдите в систему.
-            </p>
-          ) : null}
           <button
             type="submit"
             disabled={loading}
@@ -97,7 +105,6 @@ export default function RegisterPage() {
           >
             {loading ? "Создание…" : "Создать аккаунт"}
           </button>
-          {/* Кнопка OAuth даёт альтернативный путь регистрации/входа через Google */}
           <button
             type="button"
             onClick={() => signIn("google", { callbackUrl: "/admin" })}
@@ -112,7 +119,6 @@ export default function RegisterPage() {
             Войти
           </Link>
         </p>
-        {/* Кнопка возврата нужна, чтобы пользователь мог перейти на главную со страницы регистрации */}
         <Link
           href="/"
           className="mt-3 block w-full rounded-lg border border-stone-300 py-2.5 text-center text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-stone-800"

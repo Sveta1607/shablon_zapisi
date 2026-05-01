@@ -1,4 +1,4 @@
-// Оборачивает приложение в SessionProvider — нужен для signOut и useSession на клиенте
+// SessionProvider нужен для useSession и signOut на клиенте
 "use client";
 
 import { SessionProvider } from "next-auth/react";

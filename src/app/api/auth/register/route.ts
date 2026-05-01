@@ -1,11 +1,9 @@
-// Регистрация владельца: пользователь + организация со slug + расписание по умолчанию (вся неделя 9–18, включая сб и вс)
+// Регистрация владельца: пользователь сразу «подтверждён» (без писем), организация и недельное расписание 9–18
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { addHours } from "date-fns";
 import { z } from "zod";
+import { consumeRegisterRateLimit, getClientIp } from "@/lib/auth-security";
 import { prisma } from "@/lib/prisma";
-import { sendAuthActionLink } from "@/lib/auth-mail";
-import { consumeRegisterRateLimit, createRawTokenAndHash, getClientIp } from "@/lib/auth-security";
 
 const bodySchema = z.object({
   email: z.string().email(),
@@ -24,7 +22,6 @@ async function uniqueSlug(): Promise<string> {
 }
 
 export async function POST(req: Request) {
-  // Rate limit регистрации ограничивает массовые автоматические попытки с одного IP
   const ip = getClientIp(req);
   if (!(await consumeRegisterRateLimit(ip))) {
     return NextResponse.json({ error: "Слишком много попыток. Повторите позже." }, { status: 429 });
@@ -36,58 +33,26 @@ export async function POST(req: Request) {
   }
   const { email, password, name, businessName } = parsed.data;
   const lower = email.toLowerCase();
+
   const taken = await prisma.user.findUnique({ where: { email: lower } });
   if (taken) {
-    // Если email уже подтвержден, не даем повторно регистрировать существующий аккаунт
-    if (taken.emailVerifiedAt) {
-      return NextResponse.json({ error: "Этот email уже зарегистрирован" }, { status: 409 });
-    }
-    // Для неподтвержденного аккаунта перевыпускаем ссылку подтверждения вместо ошибки
-    const { rawToken: retryRawToken, tokenHash: retryTokenHash } = createRawTokenAndHash();
-    await prisma.$transaction(async (tx) => {
-      await tx.emailVerificationToken.updateMany({
-        where: { userId: taken.id, usedAt: null },
-        data: { usedAt: new Date() },
-      });
-      await tx.emailVerificationToken.create({
-        data: {
-          userId: taken.id,
-          tokenHash: retryTokenHash,
-          expiresAt: addHours(new Date(), 24),
-        },
-      });
-    });
-    const resendResult = await sendAuthActionLink({
-      to: lower,
-      kind: "verify-email",
-      token: retryRawToken,
-    });
-    return NextResponse.json({
-      ok: true,
-      requiresEmailVerification: true,
-      alreadyExistsUnverified: true,
-      emailDelivery: resendResult.delivered ? "sent" : "fallback-log",
-      message: "Аккаунт с этим email уже создан, отправили новую ссылку подтверждения.",
-    });
+    return NextResponse.json({ error: "Этот email уже зарегистрирован" }, { status: 409 });
   }
+
   const passwordHash = await bcrypt.hash(password, 12);
   const slug = await uniqueSlug();
-  // dayOfWeek как в JS: 0 — вс, 1 — пн, … 6 — сб; запись на все 7 дней
   const defaultDays = [0, 1, 2, 3, 4, 5, 6];
   const startMinutes = 9 * 60;
   const endMinutes = 18 * 60;
+  const now = new Date();
 
-  const { rawToken, tokenHash } = createRawTokenAndHash();
   await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
-      data: { email: lower, passwordHash, name: name ?? null },
-    });
-    // Токен подтверждения email создается сразу при регистрации, чтобы вход был доступен только после верификации
-    await tx.emailVerificationToken.create({
       data: {
-        userId: user.id,
-        tokenHash,
-        expiresAt: addHours(new Date(), 24),
+        email: lower,
+        passwordHash,
+        name: name ?? null,
+        emailVerifiedAt: now,
       },
     });
     const org = await tx.organization.create({
@@ -106,13 +71,6 @@ export async function POST(req: Request) {
       })),
     });
   });
-  // Отправка ссылки завершает процесс регистрации и переводит пользователя в подтвержденный статус после клика
-  const mailResult = await sendAuthActionLink({ to: lower, kind: "verify-email", token: rawToken });
 
-  return NextResponse.json({
-    ok: true,
-    slug,
-    requiresEmailVerification: true,
-    emailDelivery: mailResult.delivered ? "sent" : "fallback-log",
-  });
+  return NextResponse.json({ ok: true, slug, emailVerificationDisabled: true });
 }

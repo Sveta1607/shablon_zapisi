@@ -47,9 +47,7 @@ export async function GET() {
     console.error("[ad-hoc GET]", e);
     const m = e instanceof Error ? e.message : String(e);
     const hint =
-      /no such table|does not exist|Unknown table|SQLITE_ERROR/i.test(m)
-        ? " Выполните: npx prisma db push (в папке saas)"
-        : "";
+      /does not exist|relation|42P01/i.test(m) ? " Выполните: npx prisma migrate deploy к Supabase" : "";
     return NextResponse.json({ error: m + hint }, { status: 500 });
   }
 }
@@ -101,9 +99,7 @@ export async function PUT(req: Request) {
     console.error("[ad-hoc PUT]", e);
     const m = e instanceof Error ? e.message : String(e);
     const hint =
-      /no such table|does not exist|Unknown table|SQLITE_ERROR/i.test(m)
-        ? " Таблица не найдена: npx prisma db push (в папке saas)"
-        : "";
+      /does not exist|relation|42P01/i.test(m) ? " Таблица не найдена: npx prisma migrate deploy" : "";
     return NextResponse.json({ error: m + hint }, { status: 500 });
   }
 }

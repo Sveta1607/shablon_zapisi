@@ -80,7 +80,7 @@ export async function POST(req: Request) {
   } catch (e) {
     console.error("[page-background-image db]", e);
     return NextResponse.json(
-      { error: "Ошибка базы. Выполните npx prisma db push в папке saas и перезапустите сервер." },
+      { error: "Ошибка базы. Проверьте миграции Prisma к Supabase и перезапустите сервер." },
       { status: 500 }
     );
   }

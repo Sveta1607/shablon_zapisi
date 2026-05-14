@@ -48,8 +48,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         try {
-          const user = await prisma.user.findUnique({
-            where: { email: email.toLowerCase() },
+          const emailNorm = email.toLowerCase();
+          let user = await prisma.user.findUnique({
+            where: { email: emailNorm },
           });
           if (!user) {
             await writeAuditLog({ action: "login_failed_user_missing", ip });
@@ -68,6 +69,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             orgAsOwner?.suspended === true || membership?.organization?.suspended === true;
           if (suspended) return null;
           if (user.lockoutUntil && user.lockoutUntil > new Date()) return null;
+
+          // После перехода по ссылке из письма запись на мастере уже есть, а чтение может попасть на отстающую реплику — один повторный запрос
+          if (!user.emailVerifiedAt) {
+            await new Promise<void>((resolve) => {
+              setTimeout(resolve, 450);
+            });
+            const refreshed = await prisma.user.findUnique({
+              where: { email: emailNorm },
+              select: { emailVerifiedAt: true },
+            });
+            if (refreshed?.emailVerifiedAt) {
+              user = { ...user, emailVerifiedAt: refreshed.emailVerifiedAt };
+            }
+          }
 
           if (!user.emailVerifiedAt) {
             await writeAuditLog({ userId: user.id, action: "login_blocked_unverified", ip });

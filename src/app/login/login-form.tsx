@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function LoginForm() {
   const router = useRouter();
@@ -17,6 +17,13 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // После редиректа с подтверждения email сбрасываем старую ошибку «не подтверждён» — иначе зелёный баннер и красный текст вместе
+  useEffect(() => {
+    if (notice === "email-verified" || notice === "password-reset") {
+      setError(null);
+    }
+  }, [notice]);
 
   return (
     <div className="flex min-h-full flex-col justify-center bg-gradient-to-b from-teal-50/50 via-stone-50 to-stone-100/80 px-4 py-12 dark:from-stone-950 dark:via-stone-900 dark:to-stone-950">
@@ -52,7 +59,9 @@ export function LoginForm() {
             setLoading(false);
             if (res?.error) {
               if (res.code === "email_not_verified") {
-                setError("Сначала подтвердите email — проверьте почту или запросите письмо на странице «Повторить письмо».");
+                setError(
+                  "Аккаунт ещё без подтверждённой почты в базе. Вход письмо не отправляет — откройте ссылку из письма при регистрации или запросите новое на странице «Повторить письмо»."
+                );
               } else if (res.code === "database_configuration") {
                 setError(
                   "Сервер не может подключиться к базе данных. Проверьте в .env переменную DATABASE_URL (должна начинаться с postgresql://), что PostgreSQL запущен и миграции применены, затем перезапустите dev-сервер."

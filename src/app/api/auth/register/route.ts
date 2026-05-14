@@ -43,19 +43,50 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: dbUrlIssue, code: "database_configuration" }, { status: 503 });
   }
 
-  const passwordHash = await bcrypt.hash(password, 12);
-  const defaultDays = [0, 1, 2, 3, 4, 5, 6];
-  const startMinutes = 9 * 60;
-  const endMinutes = 18 * 60;
-
   let user;
   let slug = "";
   try {
-    // Проверка занятости email и создание записей — любой сбой Prisma отдаём как понятный 503, а не 500
+    // Сначала проверяем email: неподтверждённый аккаунт — повторная отправка письма при совпадении пароля
     const taken = await prisma.user.findUnique({ where: { email: lower } });
     if (taken) {
+      if (!taken.emailVerifiedAt) {
+        const samePassword = await bcrypt.compare(password, taken.passwordHash);
+        if (!samePassword) {
+          return NextResponse.json(
+            {
+              error:
+                "Этот email уже указан, но почта не подтверждена. Чтобы получить письмо ещё раз, введите тот же пароль, что при первой регистрации.",
+            },
+            { status: 403 }
+          );
+        }
+        try {
+          await issueEmailVerificationToken(taken.id, taken.email);
+        } catch (e) {
+          console.error("[register] resend verification email failed", e);
+          return NextResponse.json(
+            {
+              error: "Не удалось отправить письмо. Проверьте SMTP в .env.",
+              needsVerification: true,
+              email: taken.email,
+            },
+            { status: 503 }
+          );
+        }
+        return NextResponse.json({
+          ok: true,
+          needsEmailVerification: true,
+          email: taken.email,
+          resent: true,
+        });
+      }
       return NextResponse.json({ error: "Этот email уже зарегистрирован" }, { status: 409 });
     }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const defaultDays = [0, 1, 2, 3, 4, 5, 6];
+    const startMinutes = 9 * 60;
+    const endMinutes = 18 * 60;
 
     slug = await uniqueSlug();
 

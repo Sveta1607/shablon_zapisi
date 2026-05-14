@@ -12,6 +12,7 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [resentFlow, setResentFlow] = useState(false);
 
   return (
     <div className="flex min-h-full flex-col justify-center bg-gradient-to-b from-teal-50/50 via-stone-50 to-stone-100/80 px-4 py-12 dark:from-stone-950 dark:via-stone-900 dark:to-stone-950">
@@ -21,11 +22,13 @@ export default function RegisterPage() {
 
         {done ? (
           <div className="mt-6 space-y-3 rounded-lg border border-teal-200 bg-teal-50/80 px-4 py-3 text-sm text-teal-900 dark:border-teal-900/50 dark:bg-teal-950/30 dark:text-teal-100">
-            <p>Проверьте почту и перейдите по ссылке для подтверждения email. После этого можно войти.</p>
+            <p>
+              {resentFlow
+                ? "Этот email уже был в системе без подтверждения — мы отправили новое письмо. Откройте ссылку из письма, затем войдите."
+                : "Проверьте почту и перейдите по ссылке для подтверждения email. После этого можно войти."}
+            </p>
             <p className="text-stone-600 dark:text-stone-400">
-              Не пришло письмо? Настройте{" "}
-              <code className="rounded bg-stone-200/80 px-1 text-xs dark:bg-stone-800">RESEND_API_KEY</code> и{" "}
-              <code className="rounded bg-stone-200/80 px-1 text-xs dark:bg-stone-800">EMAIL_FROM</code> или запросите повтор на странице ниже.
+              Не пришло письмо? Проверьте настройки отправки почты в .env (SMTP) и папку «Спам», либо запросите повтор ниже.
             </p>
             <Link href="/resend-verification" className="inline-block font-medium text-teal-800 underline dark:text-teal-300">
               Повторить письмо
@@ -57,6 +60,7 @@ export default function RegisterPage() {
               const data = await res.json().catch(() => ({}));
               setLoading(false);
               if (res.status === 503 && data.needsVerification) {
+                setResentFlow(Boolean(data.resent));
                 setDone(true);
                 return;
               }
@@ -64,6 +68,7 @@ export default function RegisterPage() {
                 setError(typeof data.error === "string" ? data.error : "Ошибка регистрации");
                 return;
               }
+              setResentFlow(Boolean(data.resent));
               setDone(true);
             }}
           >

@@ -1,4 +1,4 @@
-// Форма входа: email/пароль и опционально Google через NextAuth
+// Форма входа: email/пароль; отдельные сообщения для неподтверждённой почты
 "use client";
 
 import Link from "next/link";
@@ -11,6 +11,7 @@ export function LoginForm() {
   const search = useSearchParams();
   const callbackUrl = search.get("callbackUrl") || "/admin";
   const notice = search.get("notice");
+  const urlError = search.get("error");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,6 +28,16 @@ export function LoginForm() {
             Пароль обновлён. Войдите с новым паролем.
           </p>
         ) : null}
+        {notice === "email-verified" ? (
+          <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">
+            Email подтверждён. Можно войти.
+          </p>
+        ) : null}
+        {urlError === "verify_invalid" || urlError === "verify_missing" ? (
+          <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+            Ссылка подтверждения недействительна или истекла. Запросите новое письмо на странице повторной отправки.
+          </p>
+        ) : null}
         <form
           className="mt-6 space-y-4"
           onSubmit={async (e) => {
@@ -40,7 +51,15 @@ export function LoginForm() {
             });
             setLoading(false);
             if (res?.error) {
-              setError("Неверный email или пароль");
+              if (res.code === "email_not_verified") {
+                setError("Сначала подтвердите email — проверьте почту или запросите письмо на странице «Повторить письмо».");
+              } else if (res.code === "database_configuration") {
+                setError(
+                  "Сервер не может подключиться к базе данных. Проверьте в .env переменную DATABASE_URL (должна начинаться с postgresql://), что PostgreSQL запущен и миграции применены, затем перезапустите dev-сервер."
+                );
+              } else {
+                setError("Неверный email или пароль");
+              }
               return;
             }
             router.push(callbackUrl.startsWith("/") ? callbackUrl : "/admin");
@@ -89,19 +108,14 @@ export function LoginForm() {
             Забыли пароль?
           </Link>
         </p>
-        <p className="mt-2 text-center text-sm text-stone-500">
-          Подтверждение email сейчас не требуется — после регистрации можно сразу войти.
+        <p className="mt-2 text-center text-sm">
+          <Link href="/resend-verification" className="font-medium text-teal-800 hover:underline dark:text-teal-300">
+            Повторить письмо подтверждения
+          </Link>
         </p>
-        <button
-          type="button"
-          onClick={() => signIn("google", { callbackUrl })}
-          className="mt-3 w-full rounded-lg border border-stone-300 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-stone-800"
-        >
-          Войти через Google
-        </button>
         <Link
           href="/"
-          className="mt-3 block w-full rounded-lg border border-stone-300 py-2.5 text-center text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-stone-800"
+          className="mt-4 block w-full rounded-lg border border-stone-300 py-2.5 text-center text-sm font-medium text-stone-700 hover:bg-stone-50 dark:border-stone-700 dark:text-stone-200 dark:hover:bg-stone-800"
         >
           На главную
         </Link>

@@ -4,8 +4,8 @@ import { rejectIfOrganizationSuspended, requireOrganization } from "@/lib/auth-h
 import { prisma } from "@/lib/prisma";
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const authCtx = await requireOrganization();
-  if (!authCtx) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
+  const authCtx = await requireOrganization({ permission: "schedule" });
+  if (!authCtx) return NextResponse.json({ error: "Нет доступа" }, { status: 401 });
   const s = rejectIfOrganizationSuspended(authCtx.organization);
   if (s) return s;
   const { id } = await ctx.params;

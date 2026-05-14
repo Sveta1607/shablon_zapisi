@@ -12,8 +12,8 @@ const patchSchema = z.object({
 });
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const authCtx = await requireOrganization();
-  if (!authCtx) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
+  const authCtx = await requireOrganization({ permission: "bookings" });
+  if (!authCtx) return NextResponse.json({ error: "Нет доступа" }, { status: 401 });
   const s = rejectIfOrganizationSuspended(authCtx.organization);
   if (s) return s;
   const { id } = await ctx.params;

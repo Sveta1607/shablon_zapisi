@@ -20,21 +20,28 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Auth In Production (Vercel)
+## Auth (production)
 
-Configure environment variables from `.env.example` in Vercel Project Settings:
+Переменные (см. также `.env.example`):
 
-- `AUTH_SECRET` for Auth.js sessions.
-- `DATABASE_URL` for Prisma (recommended: Postgres provider on Vercel).
-- `NEXT_PUBLIC_APP_URL` for absolute links in auth emails.
-- `RESEND_API_KEY` and `AUTH_FROM_EMAIL` to send real verification/reset emails.
-- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` for global rate limiting across instances.
-- Optional Google OAuth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`.
+- `AUTH_SECRET` — шифрование сессий Auth.js.
+- `DATABASE_URL` — PostgreSQL для Prisma.
+- `AUTH_URL` — базовый URL приложения для ссылок в письмах (на dev используйте порт из `npm run dev`, например `http://localhost:3002`).
+- `RESEND_API_KEY` + `EMAIL_FROM` — отправка писем подтверждения и сброса пароля через [Resend](https://resend.com).
+- `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` — общий rate limit между инстансами.
 
-Behavior:
+Поведение:
 
-- If `RESEND_API_KEY` is missing, auth links are logged to server console (dev fallback).
-- If Upstash Redis envs are missing, rate limiting falls back to in-memory (not globally shared across serverless instances).
+- Вход только по email/паролю после подтверждения почты; Google OAuth в коде отключён.
+- Без `RESEND_API_KEY` ссылки из писем выводятся в консоль сервера (fallback для разработки).
+- После смены пароля сессии инвалидируются (`sessionVersion`).
+- Роли: владелец, участники `ADMIN` / `STAFF` (см. `/admin/team`), права на API по матрице в `src/lib/permissions.ts`.
+
+Миграции БД после обновления:
+
+```bash
+npx prisma migrate deploy
+```
 
 ## Learn More
 

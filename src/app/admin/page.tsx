@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { auth } from "@/auth";
 import { CopyBookingLink } from "@/components/admin/CopyBookingLink";
+import { getAdminOrganizationForUser } from "@/lib/admin-org";
 import { formatOrgDateTime } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { formatInTimeZone, toDate } from "date-fns-tz";
@@ -11,12 +12,11 @@ export default async function AdminDashboardPage() {
   const userId = session?.user?.id;
   if (!userId) return null;
 
-  const org = await prisma.organization.findUnique({
-    where: { ownerId: userId },
-  });
-  if (!org) {
+  const orgCtx = await getAdminOrganizationForUser(userId);
+  if (!orgCtx) {
     return <p className="text-red-600">Организация не найдена. Обратитесь в поддержку.</p>;
   }
+  const org = orgCtx.organization;
 
   const now = new Date();
   const ymd = formatInTimeZone(now, org.timezone, "yyyy-MM-dd");

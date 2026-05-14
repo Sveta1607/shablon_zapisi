@@ -58,6 +58,31 @@ export async function consumeRegisterRateLimit(ip: string): Promise<boolean> {
   return consumeLimitRedis(`register:${ip}`, REGISTER_MAX_ATTEMPTS_PER_WINDOW, REGISTER_WINDOW_MS);
 }
 
+/** Окно для повторной отправки писем (verify / forgot) на один email или IP */
+const EMAIL_ACTION_WINDOW_MS = 60 * 60_000;
+const EMAIL_ACTION_MAX_PER_WINDOW = 5;
+
+export async function consumeEmailActionRateLimit(key: string): Promise<boolean> {
+  return consumeLimitRedis(`email:${key}`, EMAIL_ACTION_MAX_PER_WINDOW, EMAIL_ACTION_WINDOW_MS);
+}
+
+/** TTL одноразовых токенов из писем */
+export const VERIFY_EMAIL_TOKEN_MS = 24 * 60 * 60 * 1000;
+export const PASSWORD_RESET_TOKEN_MS = 60 * 60 * 1000;
+
+/** IP из объекта запроса authorize NextAuth (headers как у Web Request) */
+export function getClientIpFromUnknown(req: unknown): string {
+  if (req && typeof req === "object" && "headers" in req) {
+    const headers = (req as { headers?: { get?: (name: string) => string | null } }).headers;
+    if (headers?.get) {
+      const xff = headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+      const realIp = headers.get("x-real-ip")?.trim();
+      return xff || realIp || "unknown";
+    }
+  }
+  return "unknown";
+}
+
 export function createRawTokenAndHash(): { rawToken: string; tokenHash: string } {
   const rawToken = randomBytes(32).toString("hex");
   const tokenHash = createHash("sha256").update(rawToken).digest("hex");

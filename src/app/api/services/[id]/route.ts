@@ -13,8 +13,8 @@ const patchSchema = z.object({
 });
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const authCtx = await requireOrganization();
-  if (!authCtx) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
+  const authCtx = await requireOrganization({ permission: "services" });
+  if (!authCtx) return NextResponse.json({ error: "Нет доступа" }, { status: 401 });
   const s0 = rejectIfOrganizationSuspended(authCtx.organization);
   if (s0) return s0;
   const { id } = await ctx.params;
@@ -35,8 +35,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 }
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const authCtx = await requireOrganization();
-  if (!authCtx) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
+  const authCtx = await requireOrganization({ permission: "services" });
+  if (!authCtx) return NextResponse.json({ error: "Нет доступа" }, { status: 401 });
   const s1 = rejectIfOrganizationSuspended(authCtx.organization);
   if (s1) return s1;
   const { id } = await ctx.params;

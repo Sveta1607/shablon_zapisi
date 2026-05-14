@@ -1,9 +1,12 @@
-// Регистрация владельца: пользователь сразу «подтверждён» (без писем), организация и недельное расписание 9–18
+// Регистрация владельца: без подтверждения email вход запрещён; письмо с ссылкой
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { issueEmailVerificationToken } from "@/lib/auth-tokens";
 import { consumeRegisterRateLimit, getClientIp } from "@/lib/auth-security";
+import { getPostgresDatabaseUrlValidationError, isPrismaClientInitializationError, isPrismaTransientConnectionError } from "@/lib/database-config";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 const bodySchema = z.object({
   email: z.string().email(),
@@ -34,43 +37,97 @@ export async function POST(req: Request) {
   const { email, password, name, businessName } = parsed.data;
   const lower = email.toLowerCase();
 
-  const taken = await prisma.user.findUnique({ where: { email: lower } });
-  if (taken) {
-    return NextResponse.json({ error: "Этот email уже зарегистрирован" }, { status: 409 });
+  // Явная проверка строки БД — иначе Prisma даёт 500 без понятного текста для пользователя
+  const dbUrlIssue = getPostgresDatabaseUrlValidationError();
+  if (dbUrlIssue) {
+    return NextResponse.json({ error: dbUrlIssue, code: "database_configuration" }, { status: 503 });
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
-  const slug = await uniqueSlug();
   const defaultDays = [0, 1, 2, 3, 4, 5, 6];
   const startMinutes = 9 * 60;
   const endMinutes = 18 * 60;
-  const now = new Date();
 
-  await prisma.$transaction(async (tx) => {
-    const user = await tx.user.create({
-      data: {
-        email: lower,
-        passwordHash,
-        name: name ?? null,
-        emailVerifiedAt: now,
-      },
-    });
-    const org = await tx.organization.create({
-      data: {
-        slug,
-        ownerId: user.id,
-        businessName,
-      },
-    });
-    await tx.weeklySlot.createMany({
-      data: defaultDays.map((dayOfWeek) => ({
-        organizationId: org.id,
-        dayOfWeek,
-        startMinutes,
-        endMinutes,
-      })),
-    });
-  });
+  let user;
+  let slug = "";
+  try {
+    // Проверка занятости email и создание записей — любой сбой Prisma отдаём как понятный 503, а не 500
+    const taken = await prisma.user.findUnique({ where: { email: lower } });
+    if (taken) {
+      return NextResponse.json({ error: "Этот email уже зарегистрирован" }, { status: 409 });
+    }
 
-  return NextResponse.json({ ok: true, slug, emailVerificationDisabled: true });
+    slug = await uniqueSlug();
+
+    user = await prisma.$transaction(async (tx) => {
+      const u = await tx.user.create({
+        data: {
+          email: lower,
+          passwordHash,
+          name: name ?? null,
+          emailVerifiedAt: null,
+        },
+      });
+      const org = await tx.organization.create({
+        data: {
+          slug,
+          ownerId: u.id,
+          businessName,
+        },
+      });
+      await tx.weeklySlot.createMany({
+        data: defaultDays.map((dayOfWeek) => ({
+          organizationId: org.id,
+          dayOfWeek,
+          startMinutes,
+          endMinutes,
+        })),
+      });
+      return u;
+    });
+  } catch (e) {
+    if (isPrismaClientInitializationError(e)) {
+      console.error("[register] Prisma init", e);
+      return NextResponse.json(
+        {
+          error:
+            "Не удалось подключиться к базе данных. Проверьте DATABASE_URL и что сервер PostgreSQL запущен, затем перезапустите приложение.",
+          code: "database_configuration",
+        },
+        { status: 503 }
+      );
+    }
+    if (isPrismaTransientConnectionError(e)) {
+      console.error("[register] DB pool / connection", e);
+      return NextResponse.json(
+        {
+          error:
+            "База данных временно недоступна или разорвало соединение (часто сеть или лимит соединений у хостинга). Повторите регистрацию через минуту.",
+          code: "database_temporarily_unavailable",
+        },
+        { status: 503 }
+      );
+    }
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return NextResponse.json({ error: "Этот email уже зарегистрирован" }, { status: 409 });
+    }
+    throw e;
+  }
+
+  try {
+    await issueEmailVerificationToken(user.id, user.email);
+  } catch (e) {
+    console.error("[register] email send failed", e);
+    return NextResponse.json(
+      {
+        error:
+          "Аккаунт создан, но письмо не отправлено. Проверьте SMTP в .env или запросите повтор на странице входа.",
+        needsVerification: true,
+        email: user.email,
+      },
+      { status: 503 }
+    );
+  }
+
+  return NextResponse.json({ ok: true, slug, needsEmailVerification: true, email: user.email });
 }

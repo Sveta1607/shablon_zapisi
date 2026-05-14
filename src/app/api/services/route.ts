@@ -12,8 +12,9 @@ const createSchema = z.object({
 });
 
 export async function GET() {
-  const ctx = await requireOrganization();
-  if (!ctx) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
+  // Список услуг — только владелец/админ (STAFF ведёт записи без редактирования прайса)
+  const ctx = await requireOrganization({ permission: "services" });
+  if (!ctx) return NextResponse.json({ error: "Нет доступа" }, { status: 401 });
   const s = rejectIfOrganizationSuspended(ctx.organization);
   if (s) return s;
   const list = await prisma.service.findMany({
@@ -24,8 +25,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const ctx = await requireOrganization();
-  if (!ctx) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
+  const ctx = await requireOrganization({ permission: "services" });
+  if (!ctx) return NextResponse.json({ error: "Нет доступа" }, { status: 401 });
   const sus = rejectIfOrganizationSuspended(ctx.organization);
   if (sus) return sus;
   const json = await req.json().catch(() => null);

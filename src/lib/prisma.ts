@@ -1,11 +1,13 @@
-// Единый PrismaClient для API и серверных компонентов (PostgreSQL на Supabase)
+// Единый PrismaClient для API и серверных компонентов (PostgreSQL; URL дополняется таймаутами пула для удалённых БД)
 import { PrismaClient } from "@prisma/client";
+import { buildPrismaDatabaseUrl } from "@/lib/database-config";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
 
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
+    datasources: { db: { url: buildPrismaDatabaseUrl() } },
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
 

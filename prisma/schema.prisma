@@ -1,4 +1,4 @@
-// Prisma + PostgreSQL: владелец (User), организация, услуги, расписание, записи
+// Prisma + PostgreSQL: пользователи, организации, RBAC, токены писем, аудит auth
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,19 +8,79 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  passwordHash String
-  name         String?
-  // Верификация почты сейчас отключена: при регистрации сразу ставим дату, чтобы вход работал без писем
-  emailVerifiedAt DateTime?
-  failedLoginAttempts Int      @default(0)
-  lockoutUntil DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+/// Роль участника организации (владелец хранится отдельно в Organization.ownerId)
+enum OrgRole {
+  ADMIN
+  STAFF
+}
 
-  organization Organization?
+/// Назначение одноразового токена из письма
+enum AuthTokenPurpose {
+  VERIFY_EMAIL
+  PASSWORD_RESET
+}
+
+model User {
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  passwordHash        String
+  name                String?
+  /// Заполняется после перехода по ссылке из письма подтверждения
+  emailVerifiedAt     DateTime?
+  failedLoginAttempts Int       @default(0)
+  lockoutUntil        DateTime?
+  /// Увеличивается при смене пароля — инвалидация всех JWT-сессий
+  sessionVersion      Int       @default(0)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  organization          Organization?
+  organizationMembers OrganizationMember[]
+  authTokens          AuthEmailToken[]
+  auditLogs           AuditLog[]
+}
+
+/// Одноразовые токены подтверждения почты и сброса пароля (в БД только hash)
+model AuthEmailToken {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String           @unique
+  purpose   AuthTokenPurpose
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, purpose])
+}
+
+/// Участник организации (не владелец): админ или сотрудник
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           OrgRole      @default(STAFF)
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+}
+
+/// События безопасности для разборов инцидентов
+model AuditLog {
+  id             String   @id @default(cuid())
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organizationId String?
+  action         String
+  meta           Json?
+  ip             String?
+  createdAt      DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
 }
 
 model Organization {
@@ -48,6 +108,7 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  members       OrganizationMember[]
   services      Service[]
   weeklySlots   WeeklySlot[]
   adHocDaySlots AdHocDaySlot[]

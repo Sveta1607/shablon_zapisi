@@ -10,8 +10,8 @@ const querySchema = z.object({
 });
 
 export async function GET(req: Request) {
-  const ctx = await requireOrganization();
-  if (!ctx) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
+  const ctx = await requireOrganization({ permission: "bookings" });
+  if (!ctx) return NextResponse.json({ error: "Нет доступа" }, { status: 401 });
   const r = rejectIfOrganizationSuspended(ctx.organization);
   if (r) return r;
   const url = new URL(req.url);

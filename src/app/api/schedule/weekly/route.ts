@@ -16,8 +16,8 @@ const putSchema = z.object({
 });
 
 export async function GET() {
-  const ctx = await requireOrganization();
-  if (!ctx) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
+  const ctx = await requireOrganization({ permission: "schedule" });
+  if (!ctx) return NextResponse.json({ error: "Нет доступа" }, { status: 401 });
   const s = rejectIfOrganizationSuspended(ctx.organization);
   if (s) return s;
   const slots = await prisma.weeklySlot.findMany({
@@ -28,8 +28,8 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
-  const ctx = await requireOrganization();
-  if (!ctx) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
+  const ctx = await requireOrganization({ permission: "schedule" });
+  if (!ctx) return NextResponse.json({ error: "Нет доступа" }, { status: 401 });
   const sus = rejectIfOrganizationSuspended(ctx.organization);
   if (sus) return sus;
   const json = await req.json().catch(() => null);

@@ -12,8 +12,8 @@ const MAX_BYTES = 2 * 1024 * 1024;
 const UPLOADS_ORGS = join(process.cwd(), "public", "uploads", "orgs");
 
 export async function POST(req: Request) {
-  const ctx = await requireOrganization();
-  if (!ctx) return NextResponse.json({ error: "Не авторизован" }, { status: 401 });
+  const ctx = await requireOrganization({ permission: "organization_settings" });
+  if (!ctx) return NextResponse.json({ error: "Нет доступа" }, { status: 401 });
   const s = rejectIfOrganizationSuspended(ctx.organization);
   if (s) return s;
 

@@ -1,7 +1,15 @@
 // Главная: посадочная для владельцев бизнеса — яркие, но сдержанные акценты
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
 
-export default function HomePage() {
+export default async function HomePage() {
+  // Уже вошли — сразу в панель, без посадочной с кнопками «Вход»
+  const session = await auth();
+  if (session?.user) {
+    redirect("/admin");
+  }
+
   return (
     <div className="relative flex min-h-full flex-col overflow-hidden bg-gradient-to-b from-teal-50/90 via-stone-50 to-rose-50/30 dark:from-stone-950 dark:via-stone-900 dark:to-stone-950">
       {/* Тонкая линия сверху — визуальный «бренд-маркер», строгая геометрия */}

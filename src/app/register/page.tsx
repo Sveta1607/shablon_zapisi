@@ -19,6 +19,10 @@ export default function RegisterPage() {
       <div className="mx-auto w-full max-w-sm rounded-2xl border border-stone-200/90 bg-white p-8 shadow-md shadow-stone-900/5 ring-1 ring-teal-100/50 dark:border-stone-800 dark:bg-stone-900 dark:ring-teal-900/20">
         <h1 className="text-xl font-bold text-stone-900 dark:text-stone-50">Регистрация</h1>
         <p className="mt-1 text-sm text-stone-500">Аккаунт и публичная витрина с вашей ссылкой на запись</p>
+        <p className="mt-2 text-xs text-stone-500">
+          14 дней бесплатного демо с момента регистрации. Данные сохраняются; для продолжения работы после демо потребуется
+          оплата услуги.
+        </p>
 
         {done ? (
           <div className="mt-6 space-y-3 rounded-lg border border-teal-200 bg-teal-50/80 px-4 py-3 text-sm text-teal-900 dark:border-teal-900/50 dark:bg-teal-950/30 dark:text-teal-100">

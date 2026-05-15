@@ -4,6 +4,8 @@ import { NextResponse } from "next/server";
 import { formatInTimeZone, toDate } from "date-fns-tz";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { isPublicBookingAllowed } from "@/lib/org-access";
+import { getOrganizationAccessRecord } from "@/lib/org-access-db";
 import {
   computeAvailableSlots,
   createPublicBookingWithLocks,
@@ -46,6 +48,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ slug: string }
   const org = await prisma.organization.findUnique({ where: { slug } });
   if (!org) return NextResponse.json({ error: "Не найдено" }, { status: 404 });
   if (org.suspended) return NextResponse.json({ error: "Недоступно" }, { status: 404 });
+  const access = await getOrganizationAccessRecord(org);
+  if (!isPublicBookingAllowed(access)) {
+    return NextResponse.json({ error: "Онлайн-запись временно недоступна" }, { status: 403 });
+  }
   if (!org.publicBookingEnabled) return NextResponse.json({ error: "Онлайн-запись отключена" }, { status: 403 });
 
   const service = await prisma.service.findFirst({

@@ -1,10 +1,18 @@
 // Сервер: загрузка владельца и участников для страницы команды
+import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getAdminOrganizationForUser } from "@/lib/admin-org";
 import { prisma } from "@/lib/prisma";
 import { TeamClient } from "./team-client";
 
+// Раздел временно отключён — вернуть false, когда «Команда» снова появится в меню
+const TEAM_SECTION_HIDDEN = true;
+
 export default async function AdminTeamPage() {
+  if (TEAM_SECTION_HIDDEN) {
+    redirect("/admin");
+  }
+
   const session = await auth();
   if (!session?.user?.id) {
     return null;

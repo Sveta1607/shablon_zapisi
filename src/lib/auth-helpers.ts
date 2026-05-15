@@ -6,6 +6,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import type { EffectiveOrgRole, OrgPermission } from "@/lib/permissions";
 import { hasOrgPermission } from "@/lib/permissions";
+import { hasActiveServiceAccess, type OrgAccessRecord } from "@/lib/org-access";
+import { getOrganizationAccessRecord } from "@/lib/org-access-db";
 
 export type OrganizationContext = {
   session: Session;
@@ -43,7 +45,13 @@ export async function requireOrganization(options?: RequireOrgOptions): Promise<
     if (options?.permission && !hasOrgPermission(role, options.permission)) {
       return null;
     }
-    return { session: got.session, userId: got.userId, organization: ownerOrg, role };
+    const access = await getOrganizationAccessRecord(ownerOrg);
+    return {
+      session: got.session,
+      userId: got.userId,
+      organization: { ...ownerOrg, servicePurchasedAt: access.servicePurchasedAt },
+      role,
+    };
   }
 
   const member = await prisma.organizationMember.findFirst({
@@ -57,10 +65,11 @@ export async function requireOrganization(options?: RequireOrgOptions): Promise<
     return null;
   }
 
+  const access = await getOrganizationAccessRecord(member.organization);
   return {
     session: got.session,
     userId: got.userId,
-    organization: member.organization,
+    organization: { ...member.organization, servicePurchasedAt: access.servicePurchasedAt },
     role,
   };
 }
@@ -72,9 +81,30 @@ export async function requireOrganizationOwner(): Promise<OrganizationContext | 
   return ctx;
 }
 
-export function rejectIfOrganizationSuspended(organization: { suspended: boolean }): NextResponse | null {
+function rejectIfPlatformSuspended(organization: { suspended: boolean }): NextResponse | null {
   if (organization.suspended) {
     return NextResponse.json({ error: "Аккаунт отключён администратором платформы" }, { status: 403 });
   }
   return null;
+}
+
+/** Блокировка API: отключение платформой или демо закончилось без покупки услуги */
+export function rejectIfOrganizationBlocked(organization: OrgAccessRecord): NextResponse | null {
+  const suspended = rejectIfPlatformSuspended(organization);
+  if (suspended) return suspended;
+  if (!hasActiveServiceAccess(organization)) {
+    return NextResponse.json(
+      {
+        error: "Демо-период закончился. Оплатите услугу, чтобы снова открыть панель и онлайн-запись.",
+        code: "demo_expired",
+      },
+      { status: 403 }
+    );
+  }
+  return null;
+}
+
+/** То же, что rejectIfOrganizationBlocked — имя сохранено для существующих API-роутов */
+export function rejectIfOrganizationSuspended(organization: OrgAccessRecord): NextResponse | null {
+  return rejectIfOrganizationBlocked(organization);
 }

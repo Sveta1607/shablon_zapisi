@@ -2,6 +2,8 @@
 import { NextResponse } from "next/server";
 import { applyVitrineBackground, readOrgBackgroundFromDb } from "@/lib/org-background-db";
 import { prisma } from "@/lib/prisma";
+import { isPublicBookingAllowed } from "@/lib/org-access";
+import { getOrganizationAccessRecord } from "@/lib/org-access-db";
 
 const NOT_FOUND_MSG = "Витрина не найдена. Проверьте ссылку (после /book/ должен быть ваш адрес из панели).";
 
@@ -19,6 +21,7 @@ const orgSelectForPublic = {
   logoUrl: true,
   suspended: true,
   publicBookingEnabled: true,
+  createdAt: true,
   services: {
     where: { active: true },
     orderBy: [{ sortOrder: "asc" as const }, { name: "asc" as const }],
@@ -73,6 +76,10 @@ export async function GET(_req: Request, ctx: { params: Promise<{ slug: string }
     const org = applyVitrineBackground(row, bg) as unknown as VitrineOrgPayload;
 
     const noStore = { headers: { "Cache-Control": "no-store, max-age=0" } };
+    const access = await getOrganizationAccessRecord(row);
+    if (!isPublicBookingAllowed(access)) {
+      return NextResponse.json({ ...org, services: [], publicBookingEnabled: false }, noStore);
+    }
     if (!org.publicBookingEnabled) {
       return NextResponse.json({ ...org, services: [] }, noStore);
     }

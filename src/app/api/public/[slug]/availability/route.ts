@@ -4,6 +4,8 @@ import { NextResponse } from "next/server";
 import { toDate } from "date-fns-tz";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { isPublicBookingAllowed } from "@/lib/org-access";
+import { getOrganizationAccessRecord } from "@/lib/org-access-db";
 import { computeAvailableSlots, reservationBlockMinutes } from "@/lib/slots";
 
 const querySchema = z.object({
@@ -24,6 +26,10 @@ export async function GET(req: Request, ctx: { params: Promise<{ slug: string }>
   const org = await prisma.organization.findUnique({ where: { slug } });
   if (!org) return NextResponse.json({ error: "Не найдено" }, { status: 404 });
   if (org.suspended) return NextResponse.json({ error: "Недоступно" }, { status: 404 });
+  const access = await getOrganizationAccessRecord(org);
+  if (!isPublicBookingAllowed(access)) {
+    return NextResponse.json({ error: "Запись временно недоступна" }, { status: 403 });
+  }
   if (!org.publicBookingEnabled) return NextResponse.json({ error: "Запись отключена" }, { status: 403 });
 
   const blocked = await prisma.blockedDate.findUnique({

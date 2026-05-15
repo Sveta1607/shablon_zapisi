@@ -4,11 +4,11 @@
 import { addMinutes, parseISO } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { ru } from "date-fns/locale";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookingVitrineBackground } from "@/components/book/BookingVitrineBackground";
+import { VitrineHomeLink } from "@/components/book/VitrineHomeLink";
 import { BookingDateCalendar } from "@/components/book/BookingDateCalendar";
 import { reservationBlockMinutes } from "@/lib/slots";
 
@@ -172,9 +172,7 @@ export default function PublicBookPage() {
             {org.emailContact ? <p className="mt-2 text-sm text-stone-600">{org.emailContact}</p> : null}
           </div>
           <p className="mt-8 text-center text-xs text-stone-400">
-            <Link href="/" className="hover:underline">
-              На главную
-            </Link>
+            <VitrineHomeLink className="hover:underline" />
           </p>
         </div>
       </BookingVitrineBackground>
@@ -436,9 +434,7 @@ export default function PublicBookPage() {
         </section>
 
         <p className="mt-8 text-center text-xs text-stone-400">
-          <Link href="/" className="hover:underline">
-            На главную
-          </Link>
+          <VitrineHomeLink className="hover:underline" />
         </p>
       </div>
     </BookingVitrineBackground>

@@ -104,6 +104,8 @@ model Organization {
 
   suspended            Boolean @default(false)
   publicBookingEnabled Boolean @default(true)
+  /// После оплаты услуги: доступ к панели и витрине (демо — 14 суток с createdAt)
+  servicePurchasedAt   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -20,16 +20,13 @@ const ALL_ITEMS: NavItem[] = [
   { href: "/admin/schedule", label: "Расписание", permission: "schedule" },
   { href: "/admin/bookings", label: "Записи", permission: "bookings" },
   { href: "/admin/settings", label: "Настройки", permission: "organization_settings" },
-  { href: "/admin/team", label: "Команда" },
+  // { href: "/admin/team", label: "Команда" }, — временно скрыто, доработаем позже
 ];
 
 export function AdminSidebar({ orgRole }: { orgRole: EffectiveOrgRole }) {
   const pathname = usePathname();
 
   const items = ALL_ITEMS.filter((item) => {
-    if (item.href === "/admin/team") {
-      return orgRole === "OWNER" || orgRole === "ADMIN";
-    }
     if (!item.permission) return true;
     return hasOrgPermission(orgRole, item.permission);
   });

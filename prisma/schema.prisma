@@ -20,6 +20,13 @@ enum AuthTokenPurpose {
   PASSWORD_RESET
 }
 
+/// Очередь решений после окончания демо (панель платформы)
+enum BillingReviewStatus {
+  PENDING
+  DEFERRED
+  REJECTED
+}
+
 model User {
   id                  String    @id @default(cuid())
   email               String    @unique
@@ -106,6 +113,10 @@ model Organization {
   publicBookingEnabled Boolean @default(true)
   /// После оплаты услуги: доступ к панели и витрине (демо — 14 суток с createdAt)
   servicePurchasedAt   DateTime?
+  /// Очередь на платформе: ожидает / отложено / отклонено
+  billingReviewStatus  BillingReviewStatus @default(PENDING)
+  billingDeferredAt    DateTime?
+  billingRejectedAt    DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

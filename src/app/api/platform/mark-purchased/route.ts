@@ -1,6 +1,8 @@
 // Отметить оплату услуги вручную (после перевода): только с секретом PLATFORM_ADMIN_SECRET в .env
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { grantOrganizationAccess } from "@/lib/billing-queue";
+import { isPlatformAuthorized, platformUnauthorizedResponse } from "@/lib/platform-auth";
 import { prisma } from "@/lib/prisma";
 
 const bodySchema = z.object({
@@ -8,17 +10,9 @@ const bodySchema = z.object({
   slug: z.string().min(1).max(64).optional(),
 }).refine((d) => d.email || d.slug, { message: "Укажите email или slug организации" });
 
-function isAuthorized(req: Request): boolean {
-  const secret = process.env.PLATFORM_ADMIN_SECRET?.trim();
-  if (!secret) return false;
-  const auth = req.headers.get("authorization");
-  if (!auth?.startsWith("Bearer ")) return false;
-  return auth.slice(7) === secret;
-}
-
 export async function POST(req: Request) {
-  if (!isAuthorized(req)) {
-    return NextResponse.json({ error: "Нет доступа" }, { status: 401 });
+  if (!(await isPlatformAuthorized(req))) {
+    return platformUnauthorizedResponse();
   }
 
   const json = await req.json().catch(() => null);
@@ -45,11 +39,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Организация не найдена" }, { status: 404 });
   }
 
-  const updated = await prisma.organization.update({
+  await grantOrganizationAccess(orgId);
+  const updated = await prisma.organization.findUnique({
     where: { id: orgId },
-    data: { servicePurchasedAt: new Date() },
     select: { slug: true, businessName: true, servicePurchasedAt: true },
   });
+  if (!updated) {
+    return NextResponse.json({ error: "Организация не найдена" }, { status: 404 });
+  }
 
   return NextResponse.json({
     ok: true,

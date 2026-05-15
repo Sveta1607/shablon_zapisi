@@ -57,7 +57,7 @@ export function PlatformLoginForm() {
           value={secret}
           onChange={(e) => setSecret(e.target.value)}
         />
-      </motion.div>
+      </div>
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       <button
         type="submit"

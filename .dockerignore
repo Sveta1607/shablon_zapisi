@@ -1,6 +1,12 @@
 # Exclude local build outputs to speed Docker context
 .next
 node_modules
+.git
+.cursor
+terminals
+*.md
+!README.md
+prisma/dev.db
 
 # Keep local env files out of image
 .env

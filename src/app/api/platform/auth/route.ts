@@ -18,14 +18,24 @@ export async function POST(req: Request) {
 
   const expected = getPlatformAdminSecret();
   if (!expected) {
-    return NextResponse.json({ error: "PLATFORM_ADMIN_SECRET не задан в .env" }, { status: 503 });
+    return NextResponse.json(
+      {
+        error:
+          "PLATFORM_ADMIN_SECRET не задан на сервере. Локально — в .env; на Amvera — в переменных окружения проекта.",
+      },
+      { status: 503 }
+    );
   }
-  if (parsed.data.secret !== expected) {
-    return NextResponse.json({ error: "Неверный секрет" }, { status: 401 });
+  const given = parsed.data.secret.trim();
+  if (given !== expected) {
+    return NextResponse.json(
+      { error: "Неверный секрет. Сверьте с PLATFORM_ADMIN_SECRET в .env или в панели Amvera (без пробелов)." },
+      { status: 401 }
+    );
   }
 
   const res = NextResponse.json({ ok: true });
-  setPlatformAdminCookie(res, expected);
+  setPlatformAdminCookie(res);
   return res;
 }
 

@@ -7,7 +7,7 @@ import { isPlatformAdminSession } from "@/lib/platform-auth";
 
 export default async function PlatformQueuePage() {
   if (!(await isPlatformAdminSession())) {
-    redirect("/platform/login");
+    redirect("/platform/login?reason=session");
   }
 
   return (

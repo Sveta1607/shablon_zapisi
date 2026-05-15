@@ -1,11 +1,12 @@
 // Форма входа в панель платформы по секрету из .env
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 export function PlatformLoginForm() {
-  const router = useRouter();
+  const search = useSearchParams();
+  const sessionLost = search.get("reason") === "session";
   const [secret, setSecret] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -17,21 +18,33 @@ export function PlatformLoginForm() {
         e.preventDefault();
         setError(null);
         setLoading(true);
-        const res = await fetch("/api/platform/auth", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ secret }),
-        });
-        setLoading(false);
-        if (!res.ok) {
-          const d = await res.json().catch(() => ({}));
-          setError(typeof d.error === "string" ? d.error : "Не удалось войти");
-          return;
+        try {
+          const res = await fetch("/api/platform/auth", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ secret: secret.trim() }),
+          });
+          const d = (await res.json().catch(() => ({}))) as { error?: string };
+          if (!res.ok) {
+            setError(typeof d.error === "string" ? d.error : `Ошибка входа (${res.status})`);
+            setLoading(false);
+            return;
+          }
+          // Полная перезагрузка — чтобы сервер увидел httpOnly cookie
+          window.location.href = "/platform/queue";
+        } catch {
+          setError("Не удалось связаться с сервером. Проверьте, что сайт запущен.");
+          setLoading(false);
         }
-        router.push("/platform/queue");
-        router.refresh();
       }}
     >
+      {sessionLost ? (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
+          Сессия не сохранилась. Если вы на Amvera: в переменных окружения задайте PLATFORM_ADMIN_SECRET и
+          AUTH_URL с https://вашего домена (не localhost).
+        </p>
+      ) : null}
       <div>
         <label className="block text-sm font-medium text-stone-700 dark:text-stone-300">
           Секрет платформы (PLATFORM_ADMIN_SECRET)
@@ -44,7 +57,7 @@ export function PlatformLoginForm() {
           value={secret}
           onChange={(e) => setSecret(e.target.value)}
         />
-      </div>
+      </motion.div>
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       <button
         type="submit"

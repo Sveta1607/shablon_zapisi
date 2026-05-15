@@ -7,14 +7,15 @@ RUN apk add --no-cache libc6-compat openssl
 FROM base AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+# postinstall ˜˜˜˜˜˜˜˜ prisma generate ˜˜ ˜˜˜˜˜˜˜˜˜˜˜ schema ˜ ˜˜˜˜˜˜˜˜˜ ˜˜ ˜˜˜˜ ˜˜˜˜˜
+RUN npm ci --ignore-scripts
 
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npx prisma generate && npm run build
+RUN npx prisma generate && npx next build --webpack
 
 FROM base AS runner
 WORKDIR /app

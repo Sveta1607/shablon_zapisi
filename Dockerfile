@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Production-˜˜˜˜˜: Next.js standalone + Prisma migrate ˜˜˜ ˜˜˜˜˜˜ (Amvera / Docker Compose)
+# Production image: Next.js standalone + Prisma migrate on container start
 
 FROM node:20-alpine AS base
 RUN apk add --no-cache libc6-compat openssl
@@ -7,7 +7,6 @@ RUN apk add --no-cache libc6-compat openssl
 FROM base AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-# postinstall ˜˜˜˜˜˜˜˜ prisma generate ˜˜ ˜˜˜˜˜˜˜˜˜˜˜ schema ˜ ˜˜˜˜˜˜˜˜˜ ˜˜ ˜˜˜˜ ˜˜˜˜˜
 RUN npm ci --ignore-scripts
 
 FROM base AS builder
@@ -24,21 +23,20 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3002
 ENV HOSTNAME=0.0.0.0
 
-RUN addgroup --system --gid 1001 nodejs \
-  && adduser --system --uid 1001 --ingroup nodejs nextjs
-
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./package.json
 
-# Prisma CLI ˜ ˜˜˜˜˜˜˜˜˜˜˜˜˜˜˜ ˜˜˜˜˜˜ ˜ ˜˜˜ migrate deploy ˜ runtime
+# Standalone bundle (overwrites node_modules — Prisma CLI is added after this)
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
+# Prisma CLI + engines for `migrate deploy` at runtime (must be after standalone COPY)
 COPY --from=deps /app/node_modules/prisma ./node_modules/prisma
 COPY --from=deps /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
-
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=deps /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
 
 COPY docker/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh

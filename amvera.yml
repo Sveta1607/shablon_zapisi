@@ -1,0 +1,3 @@
+# Amvera: приложение слушает 3002 (см. Dockerfile PORT), не 80 по умолчанию
+run:
+  containerPort: 3002

@@ -29,5 +29,8 @@ if [ -n "$DATABASE_URL" ]; then
   fi
 fi
 
-echo "[entrypoint] starting Next.js on port ${PORT:-3002}..."
+# HOSTNAME=0.0.0.0 в Dockerfile — иначе Amvera отдаёт 502
+export HOSTNAME="${HOSTNAME:-0.0.0.0}"
+export PORT="${PORT:-3002}"
+echo "[entrypoint] starting Next.js on ${HOSTNAME}:${PORT}..."
 exec node server.js

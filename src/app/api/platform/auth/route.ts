@@ -35,12 +35,12 @@ export async function POST(req: Request) {
   }
 
   const res = NextResponse.json({ ok: true });
-  setPlatformAdminCookie(res);
+  setPlatformAdminCookie(res, req);
   return res;
 }
 
-export async function DELETE() {
+export async function DELETE(req: Request) {
   const res = NextResponse.json({ ok: true });
-  clearPlatformAdminCookie(res);
+  clearPlatformAdminCookie(res, req);
   return res;
 }

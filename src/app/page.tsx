@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { SiteFooter } from "@/components/marketing/SiteFooter";
 
 export default async function HomePage() {
   // Уже вошли — сразу в панель, без посадочной с кнопками «Вход»
@@ -64,6 +65,7 @@ export default async function HomePage() {
           </Link>
         </div>
       </main>
+      <SiteFooter />
     </div>
   );
 }

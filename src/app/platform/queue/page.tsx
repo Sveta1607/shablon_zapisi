@@ -5,6 +5,8 @@ import { PlatformQueueClient } from "@/components/platform/PlatformQueueClient";
 import { PlatformQueueHeader } from "@/components/platform/PlatformQueueHeader";
 import { isPlatformAdminSession } from "@/lib/platform-auth";
 
+export const dynamic = "force-dynamic";
+
 export default async function PlatformQueuePage() {
   if (!(await isPlatformAdminSession())) {
     redirect("/platform/login?reason=session");

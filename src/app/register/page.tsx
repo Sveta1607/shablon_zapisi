@@ -20,8 +20,15 @@ export default function RegisterPage() {
         <h1 className="text-xl font-bold text-stone-900 dark:text-stone-50">Регистрация</h1>
         <p className="mt-1 text-sm text-stone-500">Аккаунт и публичная витрина с вашей ссылкой на запись</p>
         <p className="mt-2 text-xs text-stone-500">
-          14 дней бесплатного демо с момента регистрации. Данные сохраняются; для продолжения работы после демо потребуется
-          оплата услуги.
+          14 дней бесплатного демо с момента регистрации. Данные сохраняются; для продолжения работы после демо потребуется{" "}
+          <Link href="/payment" className="text-teal-800 underline dark:text-teal-300">
+            оплата услуги
+          </Link>
+          . Регистрируясь, вы принимаете{" "}
+          <Link href="/offer" className="text-teal-800 underline dark:text-teal-300">
+            публичную оферту
+          </Link>
+          .
         </p>
 
         {done ? (

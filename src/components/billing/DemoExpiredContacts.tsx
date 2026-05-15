@@ -58,7 +58,12 @@ export function DemoExpiredContacts({ email, phone }: Props) {
 
   return (
     <div className="mt-4 space-y-2 text-left">
-      <p className="text-center text-sm font-medium text-stone-800 dark:text-stone-200">Свяжитесь для оплаты</p>
+      <p className="text-center text-sm font-medium text-stone-800 dark:text-stone-200">
+        Свяжитесь для оплаты или смотрите{" "}
+        <a href="/payment" className="text-teal-800 underline underline-offset-2 dark:text-teal-300">
+          тариф и порядок оплаты
+        </a>
+      </p>
       <CopyContactRow label="Почта" value={billingEmail} href={`mailto:${billingEmail}`} />
       <CopyContactRow label="Телефон" value={billingPhone} href={telHref} />
       <p className="pt-1 text-center text-xs text-stone-500">

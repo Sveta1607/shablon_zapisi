@@ -16,11 +16,35 @@ export function getPlatformSessionCookieValue(): string | null {
   return createHash("sha256").update(`platform-admin:v1:${secret}`).digest("hex");
 }
 
-/** Secure только по HTTPS (AUTH_URL), иначе на http://localhost cookie не ставится */
-function useSecureCookies(): boolean {
-  const authUrl = process.env.AUTH_URL?.trim() ?? "";
+/** Явное переопределение, если прокси (Amvera) некорректно отдаёт схему */
+function envForceSecure(): boolean | null {
+  const v = process.env.PLATFORM_COOKIE_SECURE?.trim().toLowerCase();
+  if (v === "true" || v === "1") return true;
+  if (v === "false" || v === "0") return false;
+  return null;
+}
+
+/**
+ * Флаг Secure для cookie сессии платформы.
+ * На Amvera запрос к Node часто идёт по HTTP, а клиент — по HTTPS; смотрим X-Forwarded-Proto,
+ * иначе при ошибочном выборе Secure cookie браузер не сохраняет и вход «успешен», но сессии нет.
+ */
+function useSecureCookies(req?: Request): boolean {
+  const forced = envForceSecure();
+  if (forced !== null) return forced;
+
+  const authUrl = (process.env.AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "").trim();
   if (authUrl.startsWith("https://")) return true;
   if (authUrl.startsWith("http://")) return false;
+
+  if (req) {
+    const raw =
+      req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() ||
+      req.headers.get("x-forwarded-protocol")?.split(",")[0]?.trim();
+    if (raw === "https") return true;
+    if (raw === "http") return false;
+  }
+
   return process.env.NODE_ENV === "production";
 }
 
@@ -60,23 +84,23 @@ export function platformUnauthorizedResponse(): NextResponse {
   return NextResponse.json({ error: "Нет доступа" }, { status: 401 });
 }
 
-export function setPlatformAdminCookie(response: NextResponse): void {
+export function setPlatformAdminCookie(response: NextResponse, req?: Request): void {
   const value = getPlatformSessionCookieValue();
   if (!value) return;
   response.cookies.set(PLATFORM_ADMIN_COOKIE, value, {
     httpOnly: true,
     sameSite: "lax",
-    secure: useSecureCookies(),
+    secure: useSecureCookies(req),
     path: "/",
     maxAge: 60 * 60 * 24 * 14,
   });
 }
 
-export function clearPlatformAdminCookie(response: NextResponse): void {
+export function clearPlatformAdminCookie(response: NextResponse, req?: Request): void {
   response.cookies.set(PLATFORM_ADMIN_COOKIE, "", {
     httpOnly: true,
     sameSite: "lax",
-    secure: useSecureCookies(),
+    secure: useSecureCookies(req),
     path: "/",
     maxAge: 0,
   });

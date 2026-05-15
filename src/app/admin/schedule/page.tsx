@@ -172,7 +172,7 @@ export default function AdminSchedulePage() {
   return (
     <div className="mx-auto max-w-3xl space-y-10">
       <header>
-        <h1 className="text-2xl font-bold tracking-tight">Расписание</h1>
+        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Расписание</h1>
         <p className="text-zinc-600 dark:text-zinc-400">
           Вся неделя, включая субботу и воскресенье. Можно задать отдельно часы на конкретные календарные дни (тогда в этот
           день шаблон недели не используется). Перерыв (обед) — кнопкой ниже. Полный выходной — в блоке «Закрытые даты».
@@ -182,7 +182,7 @@ export default function AdminSchedulePage() {
       {msg ? <p className="text-sm text-green-600">{msg}</p> : null}
 
       {/* Семь дней: окна приёма с правкой и удалением */}
-      <section className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-700 dark:bg-zinc-800/50">
+      <section className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-800/50">
         <h2 className="text-sm font-semibold">Часы по дням недели</h2>
         <p className="mt-1 text-xs text-zinc-500">
           Примеры: 09:00–12:00 и 13:00–18:00, без перекрытий. Пересекающиеся окна в один день не сохраняются. Если в этот
@@ -205,7 +205,7 @@ export default function AdminSchedulePage() {
                     {rows.map((s) => (
                       <li
                         key={s.id}
-                        className="flex flex-wrap items-center gap-2 rounded-md border border-zinc-100 px-2 py-1.5 dark:border-zinc-700"
+                        className="flex flex-col gap-2 rounded-md border border-zinc-100 px-2 py-2 sm:flex-row sm:flex-wrap sm:items-center dark:border-zinc-700"
                       >
                         {editingId === s.id ? (
                           <>
@@ -368,7 +368,7 @@ export default function AdminSchedulePage() {
       </section>
 
       {/* Перерыв: автоматически разбивает окна (например 9–18 + убрать 12–13 → 9–12 и 13–18) */}
-      <section className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-700 dark:bg-zinc-800/50">
+      <section className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-800/50">
         <h2 className="text-sm font-semibold">Убрать время в дне (перерыв)</h2>
         <p className="mt-1 text-xs text-zinc-500">
           Укажите интервал, который нужно сделать без записи (обед, отъезд). Подходящие окна разобьются на до и после
@@ -431,7 +431,7 @@ export default function AdminSchedulePage() {
       </section>
 
       {/* Календарные исключения: в эти дни вместо «Пн/Вт/…» применяются только указанные окна */}
-      <section className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-700 dark:bg-zinc-800/50">
+      <section className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-800/50">
         <h2 className="text-sm font-semibold">Часы на отдельные даты</h2>
         <p className="mt-1 text-xs text-zinc-500">
           Например: в этот понедельник работа 3 часа, в следующий — по обычному шаблону. Добавьте дату и интервал; для одного
@@ -504,7 +504,7 @@ export default function AdminSchedulePage() {
             {adHocSlots.map((r) => (
               <li
                 key={r.id}
-                className="flex items-center justify-between gap-2 text-sm text-zinc-800 dark:text-zinc-100"
+                className="flex flex-col gap-2 text-sm text-zinc-800 sm:flex-row sm:items-center sm:justify-between dark:text-zinc-100"
               >
                 <span>
                   <span className="font-medium">{formatBlockedDateLongRu(r.dateStr)}</span>{" "}
@@ -542,7 +542,7 @@ export default function AdminSchedulePage() {
 
       {/* Закрытые календарные дни: очередь из нескольких дат, объединённое сохранение */}
 
-      <section className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-700 dark:bg-zinc-800/50">
+      <section className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 sm:p-5 dark:border-zinc-700 dark:bg-zinc-800/50">
         <h2 className="text-sm font-semibold">Закрытые даты</h2>
         <p className="mt-1 text-xs text-zinc-500">
           В эти дни запись на публичной странице будет недоступна. Одна дата — сразу «Сохранить»; несколько — отметьте дни
@@ -665,7 +665,7 @@ export default function AdminSchedulePage() {
                 {pendingBlockDates.map((ds) => (
                   <li
                     key={ds}
-                    className="flex items-center justify-between gap-2 text-sm text-zinc-800 dark:text-zinc-100"
+                    className="flex flex-col gap-2 text-sm text-zinc-800 sm:flex-row sm:items-center sm:justify-between dark:text-zinc-100"
                   >
                     <span>
                       {formatBlockedDateLongRu(ds)} <span className="text-xs text-zinc-400">({ds})</span>

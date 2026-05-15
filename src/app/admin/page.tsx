@@ -46,13 +46,13 @@ export default async function AdminDashboardPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <header className="space-y-1">
-        <h1 className="text-2xl font-bold tracking-tight">Обзор</h1>
+        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Обзор</h1>
         <p className="text-stone-600 dark:text-stone-400">
           Добро пожаловать, {greetName}. Ближайших активных записей: {upcoming}.
         </p>
       </header>
 
-      <section className="rounded-2xl border border-stone-200 bg-white/90 p-5 shadow-sm dark:border-stone-700 dark:bg-stone-900/50">
+      <section className="rounded-2xl border border-stone-200 bg-white/90 p-4 shadow-sm sm:p-5 dark:border-stone-700 dark:bg-stone-900/50">
         <h2 className="text-sm font-semibold text-stone-900 dark:text-stone-100">Публичная запись</h2>
         <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
           Отправьте клиентам ссылку ниже — они увидят ваши услуги и свободное время без входа в админку.

@@ -1,6 +1,6 @@
-// Каркас админки: сессия, организация владельца или участника, роль для меню и прав
+// Каркас админки: сессия, организация, мобильная оболочка и права по роли
 import { auth } from "@/auth";
-import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { AdminShell } from "@/components/admin/AdminShell";
 import { AdminTrialBanner } from "@/components/admin/AdminTrialBanner";
 import { getAdminOrganizationForUser } from "@/lib/admin-org";
 import { redirect } from "next/navigation";
@@ -28,12 +28,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="flex min-h-screen bg-stone-50/90 text-stone-900 dark:bg-stone-950 dark:text-stone-100">
-      <AdminSidebar orgRole={role} />
-      <main className="min-w-0 flex-1 overflow-auto p-6 md:p-8">
-        <AdminTrialBanner organization={org} />
-        {children}
-      </main>
-    </div>
+    <AdminShell orgRole={role}>
+      <AdminTrialBanner organization={org} />
+      {children}
+    </AdminShell>
   );
 }

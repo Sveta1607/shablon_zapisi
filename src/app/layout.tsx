@@ -5,6 +5,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Онлайн-запись для мастеров — услуги и расписание",
   description: "Панель и публичная запись: салон, ногтевой сервис, массаж и другие услуги частных мастеров",
+  viewport: { width: "device-width", initialScale: 1, viewportFit: "cover" },
 };
 
 export default function RootLayout({

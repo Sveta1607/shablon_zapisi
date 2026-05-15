@@ -176,7 +176,7 @@ export default function AdminSettingsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-8">
       <header>
-        <h1 className="text-2xl font-bold tracking-tight">Настройки</h1>
+        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Настройки</h1>
         <p className="text-stone-600 dark:text-stone-400">Данные бизнеса и параметры публичной записи</p>
       </header>
 
@@ -184,7 +184,7 @@ export default function AdminSettingsPage() {
       {formSaveError ? <p className="text-sm text-red-600">{formSaveError}</p> : null}
 
       <form
-        className="space-y-5 rounded-2xl border border-stone-200 bg-white/90 p-6 shadow-sm dark:border-stone-700 dark:bg-stone-900/50"
+        className="space-y-5 rounded-2xl border border-stone-200 bg-white/90 p-4 shadow-sm sm:p-6 dark:border-stone-700 dark:bg-stone-900/50"
         onSubmit={async (e) => {
           e.preventDefault();
           setFormSaveError(null);

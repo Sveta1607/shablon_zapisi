@@ -9,9 +9,9 @@ export function PlatformQueueHeader() {
   return (
     <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
       <div>
-        <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-50">Очередь после демо</h1>
+        <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-50">Пользователи платформы</h1>
         <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-          Дать доступ — открыть панель и витрину. Пропустить — в конец списка. Отклонить — убрать из очереди.
+          Все зарегистрированные салоны. На демо видно, сколько дней осталось. «Подтвердить доступ» можно до конца демо.
         </p>
       </div>
       <button

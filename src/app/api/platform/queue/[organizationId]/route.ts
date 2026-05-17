@@ -1,4 +1,4 @@
-// Действия по заявке: grant | defer | reject
+// Действия по организации: grant (в т.ч. до конца демо) | defer | reject
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
@@ -6,6 +6,7 @@ import {
   grantOrganizationAccess,
   rejectOrganizationReview,
 } from "@/lib/billing-queue";
+import { getOrganizationAccessPhase } from "@/lib/org-access";
 import { isPlatformAuthorized, platformUnauthorizedResponse } from "@/lib/platform-auth";
 import { prisma } from "@/lib/prisma";
 
@@ -27,17 +28,33 @@ export async function POST(req: Request, ctx: { params: Promise<{ organizationId
 
   const org = await prisma.organization.findUnique({
     where: { id: organizationId },
-    select: { id: true, servicePurchasedAt: true, suspended: true },
+    select: { id: true, createdAt: true, servicePurchasedAt: true, suspended: true },
   });
   if (!org) {
     return NextResponse.json({ error: "Организация не найдена" }, { status: 404 });
   }
 
+  const phase = getOrganizationAccessPhase(org);
   const { action } = parsed.data;
+
   if (action === "grant") {
+    if (org.suspended) {
+      return NextResponse.json({ error: "Организация заблокирована" }, { status: 400 });
+    }
+    if (org.servicePurchasedAt) {
+      return NextResponse.json({ error: "Доступ уже подтверждён" }, { status: 400 });
+    }
     await grantOrganizationAccess(organizationId);
     return NextResponse.json({ ok: true, action: "grant" });
   }
+
+  if (phase !== "demo_expired" || org.servicePurchasedAt) {
+    return NextResponse.json(
+      { error: "Отложить или отклонить можно только после окончания демо" },
+      { status: 400 }
+    );
+  }
+
   if (action === "defer") {
     await deferOrganizationReview(organizationId);
     return NextResponse.json({ ok: true, action: "defer" });

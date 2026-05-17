@@ -1,4 +1,4 @@
-// Очередь организаций с истёкшим демо
+// Панель платформы: все организации, демо и доступ
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PlatformQueueClient } from "@/components/platform/PlatformQueueClient";
@@ -14,7 +14,7 @@ export default async function PlatformQueuePage() {
 
   return (
     <div className="min-h-full bg-stone-100/90 px-4 py-10 dark:bg-stone-950">
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto max-w-3xl">
         <PlatformQueueHeader />
         <PlatformQueueClient />
         <p className="mt-8 text-center">

@@ -86,39 +86,94 @@ function rowToPlatformItem(row: OrgRow, now: Date): PlatformOrganizationItem {
   };
 }
 
-/** Приоритет в списке: сначала очередь после демо, затем активное демо, оплаченные и прочие */
+/** Категория для фильтров и группировки в панели платформы */
+export type PlatformAccessCategory =
+  | "trial"
+  | "pending"
+  | "purchased"
+  | "deferred"
+  | "rejected"
+  | "other";
+
+export type PlatformAccessFilter = "all" | PlatformAccessCategory;
+
+/** Определяет вкладку/секцию для организации */
+export function getPlatformAccessCategory(item: PlatformOrganizationItem): PlatformAccessCategory {
+  if (item.servicePurchasedAt || item.accessPhase === "purchased") return "purchased";
+  if (item.billingReviewStatus === "REJECTED") return "rejected";
+  if (item.billingReviewStatus === "DEFERRED") return "deferred";
+  if (item.accessPhase === "trial") return "trial";
+  if (item.accessPhase === "demo_expired" && item.billingReviewStatus === "PENDING") return "pending";
+  return "other";
+}
+
+export const PLATFORM_CATEGORY_ORDER: PlatformAccessCategory[] = [
+  "pending",
+  "trial",
+  "purchased",
+  "deferred",
+  "rejected",
+  "other",
+];
+
+function compareWithinCategory(a: PlatformOrganizationItem, b: PlatformOrganizationItem): number {
+  const cat = getPlatformAccessCategory(a);
+  if (cat === "trial") return a.demoDaysRemaining - b.demoDaysRemaining;
+  if (cat === "pending") {
+    return new Date(a.trialEndsAt).getTime() - new Date(b.trialEndsAt).getTime();
+  }
+  if (cat === "deferred") {
+    const da = a.billingDeferredAt ? new Date(a.billingDeferredAt).getTime() : 0;
+    const db = b.billingDeferredAt ? new Date(b.billingDeferredAt).getTime() : 0;
+    return da - db;
+  }
+  if (cat === "purchased") {
+    const pa = a.servicePurchasedAt ? new Date(a.servicePurchasedAt).getTime() : 0;
+    const pb = b.servicePurchasedAt ? new Date(b.servicePurchasedAt).getTime() : 0;
+    return pb - pa;
+  }
+  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+}
+
+/** Сортировка: ожидает → демо → доступ → пропущено → отклонено */
 function sortPlatformOrganizations(items: PlatformOrganizationItem[]): PlatformOrganizationItem[] {
-  const rank = (item: PlatformOrganizationItem): number => {
-    if (item.accessPhase === "suspended") return 50;
-    if (item.accessPhase === "purchased") return 40;
-    if (item.accessPhase === "demo_expired") {
-      if (item.billingReviewStatus === "REJECTED") return 45;
-      if (item.billingReviewStatus === "PENDING") return 0;
-      return 10;
-    }
-    if (item.accessPhase === "trial") return 20;
-    return 60;
-  };
-
   return [...items].sort((a, b) => {
-    const ra = rank(a);
-    const rb = rank(b);
-    if (ra !== rb) return ra - rb;
-
-    if (ra === 0) {
-      return new Date(a.trialEndsAt).getTime() - new Date(b.trialEndsAt).getTime();
-    }
-    if (ra === 10) {
-      const da = a.billingDeferredAt ? new Date(a.billingDeferredAt).getTime() : 0;
-      const db = b.billingDeferredAt ? new Date(b.billingDeferredAt).getTime() : 0;
-      return da - db;
-    }
-    if (ra === 20) {
-      return a.demoDaysRemaining - b.demoDaysRemaining;
-    }
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    const ca = getPlatformAccessCategory(a);
+    const cb = getPlatformAccessCategory(b);
+    const ia = PLATFORM_CATEGORY_ORDER.indexOf(ca);
+    const ib = PLATFORM_CATEGORY_ORDER.indexOf(cb);
+    if (ia !== ib) return ia - ib;
+    return compareWithinCategory(a, b);
   });
 }
+
+export function filterPlatformOrganizations(
+  items: PlatformOrganizationItem[],
+  filter: PlatformAccessFilter
+): PlatformOrganizationItem[] {
+  if (filter === "all") return items;
+  return items.filter((item) => getPlatformAccessCategory(item) === filter);
+}
+
+export const PLATFORM_ACCESS_FILTERS: {
+  id: PlatformAccessFilter;
+  label: string;
+}[] = [
+  { id: "all", label: "Все" },
+  { id: "trial", label: "Демо" },
+  { id: "purchased", label: "Доступ открыт" },
+  { id: "deferred", label: "Пропущено" },
+  { id: "rejected", label: "Доступ отклонён" },
+];
+
+export const PLATFORM_SECTION_LABELS: Record<PlatformAccessCategory, string> = {
+  trial: "Демо",
+  pending: "Ожидает решения",
+  purchased: "Доступ открыт",
+  deferred: "Пропущено",
+  rejected: "Доступ отклонён",
+  other: "Прочее",
+};
 
 /** Все зарегистрированные организации (владельцы) для панели платформы */
 export async function listAllPlatformOrganizations(now = new Date()): Promise<PlatformOrganizationItem[]> {

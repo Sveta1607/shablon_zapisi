@@ -57,6 +57,7 @@ export default function PublicBookPage() {
   const [phoneTouched, setPhoneTouched] = useState(false);
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [canGoBack, setCanGoBack] = useState(false);
 
   const service = useMemo(() => org?.services.find((s) => s.id === serviceId), [org, serviceId]);
 
@@ -90,6 +91,10 @@ export default function PublicBookPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadOrg();
   }, [loadOrg]);
+
+  useEffect(() => {
+    setCanGoBack(typeof window !== "undefined" && window.history.length > 1);
+  }, []);
 
   useEffect(() => {
     if (!serviceId || !dateStr || !org) {
@@ -171,9 +176,7 @@ export default function PublicBookPage() {
             ) : null}
             {org.emailContact ? <p className="mt-2 text-sm text-stone-600">{org.emailContact}</p> : null}
           </div>
-          <p className="mt-8 text-center text-xs text-stone-400">
-            <VitrineHomeLink className="hover:underline" />
-          </p>
+          <VitrineHomeLink className="hover:underline" />
         </div>
       </BookingVitrineBackground>
     );
@@ -193,24 +196,24 @@ export default function PublicBookPage() {
               </a>
             </p>
           ) : null}
-          {/* Кнопка «Назад»: владелец, проверяющий витрину под сессией, уходит в админку; остальные — в истории или на главную */}
-          <div className="mt-6">
-            <button
-              type="button"
-              onClick={() => {
-                if (session?.user) {
-                  router.push("/admin");
-                } else if (typeof window !== "undefined" && window.history.length > 1) {
-                  router.back();
-                } else {
-                  router.push("/");
-                }
-              }}
-              className="w-full rounded-xl border-2 border-stone-200 bg-stone-50 px-4 py-2.5 text-sm font-medium text-stone-800 transition hover:bg-stone-100 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-stone-700/80"
-            >
-              {session?.user ? "Назад в панель" : "Назад"}
-            </button>
-          </div>
+          {/* Назад: владелец — в панель; гость — только если есть история браузера */}
+          {(session?.user || canGoBack) ? (
+            <div className="mt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  if (session?.user) {
+                    router.push("/admin");
+                  } else {
+                    router.back();
+                  }
+                }}
+                className="w-full rounded-xl border-2 border-stone-200 bg-stone-50 px-4 py-2.5 text-sm font-medium text-stone-800 transition hover:bg-stone-100 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-stone-700/80"
+              >
+                {session?.user ? "Назад в панель" : "Назад"}
+              </button>
+            </div>
+          ) : null}
         </div>
         </div>
       </BookingVitrineBackground>
@@ -433,9 +436,7 @@ export default function PublicBookPage() {
           ) : null}
         </section>
 
-        <p className="mt-8 text-center text-xs text-stone-400">
-          <VitrineHomeLink className="hover:underline" />
-        </p>
+        <VitrineHomeLink className="hover:underline" />
       </div>
     </BookingVitrineBackground>
   );

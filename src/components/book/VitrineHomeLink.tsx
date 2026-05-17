@@ -1,4 +1,4 @@
-// Ссылка с публичной витрины: авторизованный мастер идёт в панель, гость — на посадочную
+// Ссылка с витрины только для владельца под сессией; гостям по ссылке мастера не показываем
 "use client";
 
 import Link from "next/link";
@@ -10,12 +10,13 @@ type Props = {
 
 export function VitrineHomeLink({ className }: Props) {
   const { data: session } = useSession();
-  const href = session?.user ? "/admin" : "/";
-  const label = session?.user ? "В панель" : "На главную";
+  if (!session?.user) return null;
 
   return (
-    <Link href={href} className={className}>
-      {label}
-    </Link>
+    <p className="mt-8 text-center text-xs text-stone-400">
+      <Link href="/admin" className={className}>
+        В панель
+      </Link>
+    </p>
   );
 }

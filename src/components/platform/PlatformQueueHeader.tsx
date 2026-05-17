@@ -11,7 +11,7 @@ export function PlatformQueueHeader() {
       <div>
         <h1 className="text-2xl font-bold text-stone-900 dark:text-stone-50">Пользователи платформы</h1>
         <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">
-          Все зарегистрированные салоны. На демо видно, сколько дней осталось. «Подтвердить доступ» можно до конца демо.
+          Фильтры: демо, доступ открыт, пропущено, отклонён. В «Все» — группы по статусу, сверху очередь после демо.
         </p>
       </div>
       <button
